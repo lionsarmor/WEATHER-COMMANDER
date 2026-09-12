@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Build a complete X16 distribution from any working directory.
+set -euo pipefail
+weather_script="$(readlink -f -- "${BASH_SOURCE[0]}")"
+cd -- "$(dirname -- "$weather_script")"
+weather_python=python3
+if [[ -x .venv/bin/python ]]; then weather_python="$PWD/.venv/bin/python"; fi
+if [[ $# -gt 1 || ( $# -eq 1 && "$1" != --check ) ]]; then
+    echo 'Usage: buildweather [--check]' >&2
+    exit 2
+fi
+"$weather_python" tools/build.py
+if [[ "${1:-}" == --check ]]; then
+    "$weather_python" tools/check.py
+    "$weather_python" tools/test_weather.py
+    "$weather_python" tools/test_cities.py
+fi
+"$weather_python" tools/package.py
+"$weather_python" tools/test_package.py

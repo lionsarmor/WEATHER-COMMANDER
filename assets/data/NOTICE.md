@@ -1,0 +1,33 @@
+# US atlas geometry
+
+`states-albers-10m.json` is the us-atlas v3 generalized US states topology in an
+Albers USA projection. Retrieved from the published us-atlas v3 package:
+https://cdn.jsdelivr.net/npm/us-atlas@3/states-albers-10m.json
+
+`states-10m.json` is the geographic version from the same package, used to
+derive the radar projection bounds in `backend/geometry.py`.
+
+Source and license: https://github.com/topojson/us-atlas (ISC; copyright Mike
+Bostock). The package derives its US geometry from US Census Bureau cartographic
+boundary files. Alaska, Hawaii, and Puerto Rico are excluded from this view.
+
+Copyright 2013-2019 Michael Bostock
+
+Permission to use, copy, modify, and/or distribute this software for any purpose
+with or without fee is hereby granted, provided that the above copyright notice
+and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS
+OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER
+TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF
+THIS SOFTWARE.
+
+## Philippines geography
+
+`philippines.geojson` is the Philippines feature from Natural Earth 1:50m
+admin-0 countries, downloaded from
+https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_50m_admin_0_countries.geojson
+Natural Earth data is public domain: https://www.naturalearthdata.com/about/terms-of-use/

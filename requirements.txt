@@ -1,0 +1,2 @@
+# Match the Pillow version used to generate and verify the original assets.
+Pillow==10.2.0

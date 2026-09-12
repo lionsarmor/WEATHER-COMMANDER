@@ -1,0 +1,15 @@
+build/
+dist/
+__pycache__/
+.venv/
+.tools/
+/locations.json
+/city.json
+/bridge-status.json
+/WCDATA.BIN
+/WCRLIVE.BIN
+/WCSETUP.BIN
+/WCQUERY.BIN
+/WCCITIES.BIN
+*.gif
+*.log

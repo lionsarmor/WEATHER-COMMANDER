@@ -1,0 +1,115 @@
+{
+  "description": "Fictional demonstration observations, not live weather",
+  "cities": [
+    {
+      "id": "metro",
+      "temperature_f": 54,
+      "condition": "clear",
+      "humidity_pct": 48,
+      "wind_mph": 6,
+      "tonight_low_f": 54,
+      "tomorrow_high_f": 72,
+      "pressure_hundredths_above_29": 110,
+      "visibility_miles": 10
+    },
+    {
+      "id": "new_york",
+      "temperature_f": 62,
+      "condition": "cloudy",
+      "humidity_pct": 63,
+      "wind_mph": 8,
+      "tonight_low_f": 55,
+      "tomorrow_high_f": 68,
+      "pressure_hundredths_above_29": 102,
+      "visibility_miles": 10
+    },
+    {
+      "id": "los_angeles",
+      "temperature_f": 72,
+      "condition": "sunny",
+      "humidity_pct": 42,
+      "wind_mph": 5,
+      "tonight_low_f": 61,
+      "tomorrow_high_f": 77,
+      "pressure_hundredths_above_29": 112,
+      "visibility_miles": 10
+    },
+    {
+      "id": "chicago",
+      "temperature_f": 58,
+      "condition": "rain",
+      "humidity_pct": 74,
+      "wind_mph": 12,
+      "tonight_low_f": 49,
+      "tomorrow_high_f": 64,
+      "pressure_hundredths_above_29": 98,
+      "visibility_miles": 7
+    },
+    {
+      "id": "houston",
+      "temperature_f": 77,
+      "condition": "sunny",
+      "humidity_pct": 55,
+      "wind_mph": 7,
+      "tonight_low_f": 66,
+      "tomorrow_high_f": 82,
+      "pressure_hundredths_above_29": 107,
+      "visibility_miles": 10
+    },
+    {
+      "id": "miami",
+      "temperature_f": 78,
+      "condition": "sunny",
+      "humidity_pct": 70,
+      "wind_mph": 9,
+      "tonight_low_f": 72,
+      "tomorrow_high_f": 84,
+      "pressure_hundredths_above_29": 105,
+      "visibility_miles": 10
+    },
+    {
+      "id": "denver",
+      "temperature_f": 63,
+      "condition": "sunny",
+      "humidity_pct": 30,
+      "wind_mph": 11,
+      "tonight_low_f": 42,
+      "tomorrow_high_f": 70,
+      "pressure_hundredths_above_29": 108,
+      "visibility_miles": 10
+    },
+    {
+      "id": "seattle",
+      "temperature_f": 52,
+      "condition": "rain",
+      "humidity_pct": 82,
+      "wind_mph": 8,
+      "tonight_low_f": 47,
+      "tomorrow_high_f": 56,
+      "pressure_hundredths_above_29": 95,
+      "visibility_miles": 5
+    },
+    {
+      "id": "boston",
+      "temperature_f": 60,
+      "condition": "cloudy",
+      "humidity_pct": 65,
+      "wind_mph": 10,
+      "tonight_low_f": 51,
+      "tomorrow_high_f": 65,
+      "pressure_hundredths_above_29": 101,
+      "visibility_miles": 10
+    },
+    {
+      "id": "san_francisco",
+      "temperature_f": 68,
+      "condition": "cloudy",
+      "humidity_pct": 78,
+      "wind_mph": 6,
+      "tonight_low_f": 55,
+      "tomorrow_high_f": 67,
+      "pressure_hundredths_above_29": 109,
+      "visibility_miles": 6
+    }
+  ]
+}

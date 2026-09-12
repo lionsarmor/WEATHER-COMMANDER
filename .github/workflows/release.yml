@@ -1,0 +1,61 @@
+name: Build and release
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: weather-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Install verified compiler and assembler
+        run: ./tools/setup-toolchain.sh
+      - name: Build, test and package
+        run: ./buildweather --check
+      - name: Keep tested downloads
+        uses: actions/upload-artifact@v4
+        with:
+          name: WEATHER-COMMANDER
+          path: |
+            dist/WEATHER-COMMANDER-X16.zip
+            dist/WEATHER-COMMANDER-BRIDGE.zip
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+      - name: Publish a new version
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          version="$(cat VERSION)"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          tag="v$version"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists. Increase VERSION to publish a new release."
+            exit 0
+          fi
+          gh release create "$tag" \
+            dist/WEATHER-COMMANDER-X16.zip \
+            dist/WEATHER-COMMANDER-BRIDGE.zip \
+            dist/SHA256SUMS.txt \
+            --target "$GITHUB_SHA" \
+            --title "Weather Commander $version" \
+            --notes-file docs/RELEASE.md

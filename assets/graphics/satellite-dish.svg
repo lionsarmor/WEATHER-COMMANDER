@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">
+  <title>Blue satellite receiving dish</title>
+  <!-- A separate, editable graphic for the resident navigation panel. -->
+  <path d="M19 25 L25 25 L26 36 L16 36 Z" fill="#9999cc"/>
+  <path d="M23 27 L26 36 L20 36 Z" fill="#0011bb"/>
+  <path d="M11 37 L29 37 L34 39 L5 39 Z" fill="#22ccee"/>
+  <path d="M3 5 Q0 25 20 29 Q29 30 34 24 L3 5 Z" fill="#0011bb" stroke="#9999cc"/>
+  <path d="M4 7 Q6 25 25 27 L31 24 Z" fill="#9999cc"/>
+  <path d="M7 12 Q10 23 22 26 L18 20 Z" fill="#eeeeff"/>
+  <path d="M3 5 C7 0 38 22 34 25 C29 29 0 10 3 5 Z" fill="#22ccee" stroke="#eeeeff" stroke-width="1.5"/>
+  <path d="M7 7 Q17 12 30 22 Q20 18 7 7 Z" fill="#0011bb"/>
+  <path d="M9 9 L27 5 L30 21 M21 18 L27 5" fill="none" stroke="#eeeeff" stroke-width="1"/>
+  <path d="M25 3 L29 2 L29 6 L26 7 Z" fill="#9999cc" stroke="#eeeeff"/>
+  <path d="M13 21 L17 26 M18 24 L21 28" stroke="#22ccee"/>
+</svg>
