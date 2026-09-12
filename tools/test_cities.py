@@ -20,6 +20,10 @@ def request(operation=1,serial=1,query='MADISON, WI',ident=0):
  return bytes(out)
 
 class CityTests(unittest.TestCase):
+ def setUp(self):
+  # A fresh CI runner may have been up for less than the cache interval.
+  clock=patch('backend.server.time.monotonic',return_value=10000)
+  clock.start();self.addCleanup(clock.stop)
  def test_country_switch_restores_personal_city_and_persists_profile(self):
   with tempfile.TemporaryDirectory() as folder:
    bridge=Bridge(folder)

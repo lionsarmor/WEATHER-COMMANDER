@@ -16,6 +16,10 @@ from weather_fixture import weather_fixture
 from radar_fixture import radar_fixture
 
 class WeatherTests(unittest.TestCase):
+ def setUp(self):
+  # Timer-reset tests must not depend on the test machine's uptime.
+  clock=patch('backend.server.time.monotonic',return_value=10000)
+  clock.start();self.addCleanup(clock.stop)
  def test_first_fetch_runs_immediately_after_computer_reboot(self):
   with tempfile.TemporaryDirectory() as folder:
    bridge=Bridge(folder)
