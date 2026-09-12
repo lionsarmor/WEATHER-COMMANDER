@@ -28,7 +28,8 @@ have been restored.
   checked trees/backreferences/output sizes and Adler-32. History uses 26–29.
 - Bank 3 `direct_png`: PNG CRC, five filters, 8-bit L/LA/RGB/RGBA/indexed color,
   transparency, bounded scanlines, rejection of placeholders and partial data.
-  Current row at `$7001`, previous row in bank 25. Final completion is required
+  Current row at `$7001`, previous row in bank 25. Compressed input is buffered
+  inside bank 3, so HTTP exchanges between completed rows cannot overwrite it. Final completion is required
   before committing pixels. `ready` alone is not proof of a valid whole image.
 - Bank 2 `direct_crypto`: SHA-256 and HMAC-SHA-256, tested against hashlib/hmac,
   including 91-byte public PAGASA grants. `direct_time` converts HTTP Date to
@@ -70,12 +71,29 @@ was 1,651 bytes, hence the 4 KiB request limit. Full map bounds must include
 canvas margins. Ignored `build/direct-us-albers-params.json` contains the probe
 parameters; it is not a shipped asset or a persistent observation ID.
 
+## Native radar checkpoint after crash recovery
+
+- Bank 1 now obtains and validates NOAA/PAGASA metadata, extracts the public
+  PAGASA session, generates nonces, signs requests, and downloads the selected
+  image. Native request tests pass, including stale/future rejection. A live
+  native NOAA request downloaded a fresh frame. PAGASA accepted the signed
+  timeline request, but its latest observation was stale and correctly rejected.
+- Bank 23 decodes one PNG row per call and samples an 84x56 geographic grid in
+  bank 25. Packing preserves precipitation locations, simplifying within the
+  same cells only when needed to stay within 207 tiles. Philippine tiles include
+  the checked `WCPBASE.BIN` geography asset, reusing released history bank 26.
+- Real r49 ROM PNG-to-WCR4 tests match every reference pixel: USA 67 tiles / 6
+  emulated seconds; Philippines 184 tiles / 283 emulated seconds. Both used full
+  resolution without simplification. Philippine decoding needs incremental UI
+  scheduling; this timing is not a physical-card test.
+- Native wire strings must use `\r\x0a`: Prog8 encodes `\n` as CR even in ISO
+  strings. The request builders now emit actual CRLF and signatures actual LF.
+- `smoke_direct_radar.py us|ph path.png` runs isolated ROM integration checks.
+
 ## Remaining work
 
-1. Nonce generation, public-session extraction,
-   NOAA/PAGASA metadata parsing, signing and image request orchestration.
-2. Geographic scanline sampling and bounded radar tile encoding; reject stale
-   or unavailable observations honestly. Test both complete fetch/display paths.
+1. Test the full native UART transport against physical card hardware when available.
+2. Integrate radar download/decoding/display into the application event loop.
 3. Native geocoding, saved personal coordinates, country switching, weather
    cache orchestration, progress/cancellation and responsiveness.
 4. Loader/build integration, demo/hardware modes, simplified Wi-Fi wizard,
@@ -83,7 +101,8 @@ parameters; it is not a shipped asset or a persistent observation ID.
 5. Packaging/docs, full regression/emulator tests, memory and machine-time
    checks, then release preparation. Do not publish before these are ready.
 
-Banks 1 (radar API) and 23 (geocoding) remain available for code. Bank 25 holds
+Banks 1 (radar API) and 23 (renderer) are now occupied. Native geocoding
+will share the network bank after its legacy bridge transport is removed. Bank 25 holds
 previous-row storage and pending radar grid; 26–29 are the 32 KiB history.
 Existing code 4–19 and graphics 30–63 remain reserved, targeting stock 512 KiB.
 HTTP scratch overlaps the radar payload, so exchanges invalidate radar readiness.

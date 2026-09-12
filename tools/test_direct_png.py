@@ -87,7 +87,7 @@ class PNGDecoder:
             elif mem[0] == 3 and cpu.pc == self.symbols['diskio:f_read']:
                 pointer = self.word(self.symbols['diskio:f_read:bufferpointer'])
                 count = self.word(self.symbols['diskio:f_read:num_bytes'])
-                assert pointer == 0x7800 and count in (1, 512)
+                assert pointer == self.symbols['p8b_direct_png:p8v_file_buffer'] and count in (1, 256)
                 assert not self.closed
                 body = self.wire[self.position:self.position + count]
                 mem[pointer:pointer + len(body)] = body

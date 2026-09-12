@@ -6,8 +6,9 @@ import sys
 from build import ROOT, TOOLS
 
 MODULES = {'direct_http':20, 'direct_weather_decode':21, 'direct_weather':22,
-           'direct_inflate':24, 'direct_png':3, 'direct_crypto':2}
-TESTS = ('http', 'download', 'json', 'weather', 'inflate', 'png', 'crypto', 'time')
+           'direct_inflate':24, 'direct_png':3, 'direct_crypto':2,
+           'direct_radar':1, 'direct_render':23}
+TESTS = ('http', 'download', 'json', 'weather', 'inflate', 'png', 'crypto', 'time', 'radar', 'render')
 
 def main():
     (ROOT/'build').mkdir(exist_ok=True)

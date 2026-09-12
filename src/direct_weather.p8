@@ -61,7 +61,7 @@ direct_weather {
         append(iso:"&hourly=temperature_2m,weather_code,precipitation_probability,uv_index")
         append(iso:"&daily=temperature_2m_max,temperature_2m_min,weather_code,precipitation_probability_max,sunrise,sunset")
         append(iso:"&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=7&forecast_hours=25")
-        append(iso:" HTTP/1.0\r\nHost: api.open-meteo.com\r\nUser-Agent: Weather-Commander-X16/0.2\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n")
+        append(iso:" HTTP/1.0\r\x0aHost: api.open-meteo.com\r\x0aUser-Agent: Weather-Commander-X16/0.2\r\x0aAccept-Encoding: identity\r\x0aConnection: close\r\x0a\r\x0a")
         direct_http_mailbox.request_length=cursor
         direct_http_mailbox.maximum=8192
         direct_http_mailbox.mode=0

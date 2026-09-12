@@ -9,7 +9,9 @@
 direct_png {
     extsub @bank 24 $a003 = inflate_initialize()
     extsub @bank 24 $a006 = inflate_pull()
-    const uword FILE_BUFFER=$7800
+    ; Keep compressed input in this bank so the resident app may refresh
+    ; weather between completed scanlines without corrupting the open image.
+    ubyte[256] file_buffer
     uword file_position
     uword file_size
     uword file_total
@@ -39,14 +41,14 @@ direct_png {
         ubyte result
         if direct_inflate_mailbox.error!=0 return 0
         if file_position==file_size {
-            file_size=diskio.f_read(FILE_BUFFER,512)
+            file_size=diskio.f_read(file_buffer,256)
             file_position=0
             if file_size==0 { fail()
                 return 0 }
         }
         if file_total==$ffff { fail()
             return 0 }
-        result=@(FILE_BUFFER+file_position)
+        result=file_buffer[file_position as ubyte]
         file_position++
         file_total++
         return result
@@ -254,7 +256,7 @@ direct_png {
             skip()
         }
         if direct_inflate_mailbox.error==0 {
-            if file_position!=file_size or diskio.f_read(FILE_BUFFER,1)!=0 fail()
+            if file_position!=file_size or diskio.f_read(file_buffer,1)!=0 fail()
         }
         direct_png_mailbox.complete=direct_inflate_mailbox.error==0
         close()
