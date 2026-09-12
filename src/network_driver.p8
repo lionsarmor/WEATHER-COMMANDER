@@ -34,7 +34,7 @@ network_driver {
     bool scan_name_done
     bool card_present
     bool modem_present
-    ubyte[6] result_line
+    ubyte[8] result_line
     ubyte result_line_length
     bool result_seen
     bool result_ok
@@ -196,13 +196,23 @@ network_driver {
                 ; ATV0 uses four for ERROR.
                 result_seen = true
                 result_ok = false
+            } else if result_line_length >= 7 and
+                      (result_line[0] & $5f) == $43 and
+                      (result_line[1] & $5f) == $4f and
+                      (result_line[2] & $5f) == $4e and
+                      (result_line[3] & $5f) == $4e and
+                      (result_line[4] & $5f) == $45 and
+                      (result_line[5] & $5f) == $43 and
+                      (result_line[6] & $5f) == $54 {
+                result_seen = true
+                result_ok = true
             }
             result_line_length = 0
-        } else if result_line_length < 5 {
+        } else if result_line_length < 7 {
             result_line[result_line_length] = character
             result_line_length++
         } else
-            result_line_length = 6
+            result_line_length = 8
     }
 
     sub read_response(uword maximum_frames) {

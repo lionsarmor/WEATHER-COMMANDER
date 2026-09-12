@@ -11,5 +11,7 @@ __pycache__/
 /WCSETUP.BIN
 /WCQUERY.BIN
 /WCCITIES.BIN
+/WCRPNG.BIN
+/WCRRAW.BIN
 *.gif
 *.log
