@@ -15,16 +15,15 @@ settings {
         if state.units==0 row(19,iso:"U",iso:"TEMPERATURE",iso:"FAHRENHEIT")
         else row(19,iso:"U",iso:"TEMPERATURE",iso:"CELSIUS")
         when state.interval {
-            30 -> row(23,iso:"T",iso:"UPDATE EVERY",iso:"30 SECONDS")
-            60 -> row(23,iso:"T",iso:"UPDATE EVERY",iso:"60 SECONDS")
-            else -> row(23,iso:"T",iso:"UPDATE EVERY",iso:"120 SECONDS")
+            30 -> row(23,iso:"T",iso:"CHECK EVERY",iso:"30 SECONDS")
+            60 -> row(23,iso:"T",iso:"CHECK EVERY",iso:"60 SECONDS")
+            else -> row(23,iso:"T",iso:"CHECK EVERY",iso:"120 SECONDS")
         }
         if state.automatic row(27,iso:"A",iso:"AUTOMATIC REFRESH",iso:"ON")
         else row(27,iso:"A",iso:"AUTOMATIC REFRESH",iso:"OFF")
         when state.source {
             0 -> row(31,iso:"D",iso:"WEATHER SOURCE",iso:"DEMO")
-            1 -> row(31,iso:"D",iso:"WEATHER SOURCE",iso:"LOCAL FILE")
-            2 -> row(31,iso:"D",iso:"WEATHER SOURCE",iso:"AUTO / LIVE")
+            2 -> row(31,iso:"D",iso:"WEATHER SOURCE",iso:"WI-FI CARD")
         }
         ui.fill(19,35,40,2,$26)
         ui.centered(20,35,7,2,$24,iso:"C HOME")

@@ -36,7 +36,6 @@ jobs:
           name: WEATHER-COMMANDER
           path: |
             dist/WEATHER-COMMANDER-X16.zip
-            dist/WEATHER-COMMANDER-BRIDGE.zip
             dist/SHA256SUMS.txt
           if-no-files-found: error
       - name: Publish a new version
@@ -54,7 +53,6 @@ jobs:
           fi
           gh release create "$tag" \
             dist/WEATHER-COMMANDER-X16.zip \
-            dist/WEATHER-COMMANDER-BRIDGE.zip \
             dist/SHA256SUMS.txt \
             --target "$GITHUB_SHA" \
             --title "Weather Commander $version" \

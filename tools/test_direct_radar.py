@@ -156,10 +156,12 @@ class RadarTests(unittest.TestCase):
         self.assertNotEqual(radar.requests[1][1]['x-nonce'],radar.requests[2][1]['x-nonce'])
 
     def test_stale_future_and_changed_geography_are_rejected(self):
-        cases = [('stale',0),('future',0),('bounds',1),('scale',1)]
+        cases = [('stale',0),('future',0),('stale',1),('future',1),('bounds',1),('scale',1)]
         for name,country in cases:
             radar = Radar(country)
-            if name == 'stale':
+            if country == 1 and name in ('stale','future'):
+                radar.ph['data']['timeline'] = [{'observed_at_unix':NOW-1801 if name=='stale' else NOW+1}]
+            elif name == 'stale':
                 radar.us['features'][0]['attributes']['idp_validtime'] = (NOW-901)*1000
             elif name == 'future':
                 radar.us['features'][0]['attributes']['idp_validtime'] = (NOW+1)*1000

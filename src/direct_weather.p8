@@ -96,7 +96,7 @@ direct_weather {
         uword i
         uword checksum=0
         uword name=iso:"CHICAGO HOME"
-        str headline=iso:"DIRECT WI-FI / OPEN-METEO MODEL WEATHER / CURRENT CONDITIONS + HOURLY + 7 DAYS / PUBLIC APIS / NO COMPUTER BRIDGE REQUIRED"
+        str headline=iso:"DIRECT WI-FI / OPEN-METEO MODEL WEATHER / CURRENT CONDITIONS + HOURLY + 7 DAYS / PUBLIC APIS / FORECASTS AT YOUR FINGERTIPS"
         @($6400)=87
         @($6401)=67
         @($6402)=87

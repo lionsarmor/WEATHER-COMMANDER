@@ -12,8 +12,20 @@ provider {
     extsub @bank 12 $a006 = network_weather() clobbers(A,X,Y)
     sub demo_data() {
         ubyte i
+        uword size
+        uword filename=iso:"WCDMUS.BIN"
+        if state.country==1 filename=iso:"WCDMPH.BIN"
+        if state.country_status==3 {
+            filename=iso:"WCDMUS.BIN"
+            if state.country_choice==1 filename=iso:"WCDMPH.BIN"
+        }
+        if diskio.f_open(filename) {
+            size=diskio.f_read($6400,1025)
+            diskio.f_close()
+            if commit(size) { state.status=0
+                return }
+        }
         for i in 0 to 79 state.records[i]=demo[i]
-        state.country=0
         state.status=0
         state.extended=false
         state.cycles++
@@ -81,7 +93,7 @@ provider {
         uword jw
         uword now_minutes
         uword file_minutes
-        if not state.extended return
+        if not state.extended or state.source==0 return
         ym,dh,ms,jw=cx16.clock_get_date_time()
         now_minutes=(msb(dh) as uword)*60+lsb(ms)
         file_minutes=(@($600d) as uword)*60+@($600e)
@@ -92,30 +104,17 @@ provider {
         if now_minutes<file_minutes or now_minutes-file_minutes>20 state.status=2
     }
     sub refresh() {
-        uword size=0
         if state.source==0 { demo_data()
             return }
-        if state.city_action==3 and network_mailbox.url[0]!=0 {
-            network_weather()
-            if network_mailbox.complete and network_mailbox.received==1024 {
-                if commit(1024) return
-            }
+        network_weather()
+        if network_mailbox.complete and network_mailbox.received==1024 {
+            if commit(1024) return
         }
-        if diskio.f_open(iso:"WCDATA.BIN") {
-            size=diskio.f_read($6400,1025)
-            diskio.f_close()
-            if commit(size) {
-                if state.source==1 or state.status!=2 return
-            }
-        }
-        if state.source==2 {
-            network_weather()
-            if network_mailbox.complete and network_mailbox.received==1024 {
-                if commit(1024) return
-            }
-        }
-        if state.source==1 or state.extended or state.status!=0 { state.status=2
+        ; No card on first startup: use the complete, explicitly labeled demo.
+        if network_mailbox.connection==1 or not state.extended {
+            state.source=0
+            demo_data()
             return }
-        demo_data()
+        state.status=2
     }
 }

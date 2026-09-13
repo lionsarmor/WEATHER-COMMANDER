@@ -265,8 +265,14 @@ direct_radar {
         return 0
     }
     sub session() {
+        ubyte i
+        ubyte ch
         direct_radar_mailbox.error=0
         if meta(iso:"<meta name=\"csrf-token\" content=\"",&csrf,41)!=40 fail(5)
+        for i in 0 to 39 {
+            ch=csrf[i]
+            if not (ch>=48 and ch<=57 or ch>=65 and ch<=90 or ch>=97 and ch<=122) fail(5)
+        }
         if meta(iso:"<meta name=\"embed-grant\" content=\"",&grant,96)==0 fail(5)
         direct_crypto_mailbox.key_length=meta(iso:"<meta name=\"api-sig\" content=\"",&direct_crypto_mailbox.key,96)
         if direct_crypto_mailbox.key_length==0 fail(5)

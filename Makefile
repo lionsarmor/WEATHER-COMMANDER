@@ -6,8 +6,7 @@ run: all
 	./run.sh --no-build
 check: all
 	$(PYTHON) tools/check.py
-	$(PYTHON) tools/test_weather.py
-	$(PYTHON) tools/test_cities.py
+	$(PYTHON) tools/check_native.py
 package:
 	./buildweather
 clean:

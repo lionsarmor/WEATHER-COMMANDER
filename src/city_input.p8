@@ -1,5 +1,4 @@
 %import ui
-%import diskio
 %import interaction
 %import network_mailbox
 city_input {
@@ -138,6 +137,7 @@ city_input {
             editing=false
         }
         if status==2 {
+            state.saved=false
             state.city=0
             state.source=2
             state.page=state.CITIES
@@ -173,31 +173,12 @@ city_input {
         if operation==2 message(iso:"LOADING YOUR CITY'S WEATHER")
         ui.clear_center()
         draw()
-        if network_mailbox.url[0]!=0 {
-            network_city()
-            if network_mailbox.complete and network_mailbox.received==256 {
-                if accept() return
-            }
+        network_city()
+        if network_mailbox.complete and network_mailbox.received==256 {
+            if accept() return
         }
-        if diskio.f_open_w(iso:"@:WCQUERY.BIN") {
-            if not diskio.f_write(request,64) pending=false
-            diskio.f_close_w()
-        } else pending=false
-        if not pending message(iso:"COULD NOT SAVE / PLEASE RETRY")
+        pending=false
+        message(iso:"NO CONNECTION / PLEASE RETRY")
     }
-    sub tick() {
-        uword size
-        if not pending return
-        if diskio.f_open(iso:"WCCITIES.BIN") {
-            size=diskio.f_read($6400,257)
-            diskio.f_close()
-            if size==256 { if accept() return }
-        }
-        if cbm.RDTIM16()-started>=2700 {
-            pending=false
-            editing=true
-            state.city_dirty=true
-            message(iso:"NO CONNECTION / PLEASE RETRY")
-        }
-    }
+    sub tick() { }
 }

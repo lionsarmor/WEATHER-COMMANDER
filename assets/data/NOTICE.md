@@ -31,3 +31,11 @@ THIS SOFTWARE.
 admin-0 countries, downloaded from
 https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_50m_admin_0_countries.geojson
 Natural Earth data is public domain: https://www.naturalearthdata.com/about/terms-of-use/
+
+## Weather and city data
+
+Direct weather and forecasts: Open-Meteo, https://open-meteo.com/ (CC BY 4.0).
+City search: GeoNames through the Open-Meteo Geocoding API,
+https://www.geonames.org/ and https://open-meteo.com/en/docs/geocoding-api.
+The offline weather files are fictional samples; radar sample provenance is
+listed separately in assets/radar/NOTICE.md.

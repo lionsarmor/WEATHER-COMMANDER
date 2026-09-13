@@ -1,15 +1,15 @@
 # Standalone Wi-Fi recovery checkpoint
 
-**Unpublished and not integrated into the application yet.** The user requires
-offline demo OR real X16/Wi-Fi calling public APIs, with no computer bridge.
-Do not push or release this rewrite until direct weather AND direct radar work
-for both USA and Philippines. Work stays on local branch `standalone-wifi`.
-Published v0.1.0 and the normal `buildweather` runtime still use the old design.
+The standalone rewrite is integrated into the application. Its release gate
+was direct weather AND radar for both USA and Philippines, without a computer
+bridge. Native public requests now obtain all 20 cities' weather and fresh
+NOAA/PAGASA PNGs; both image paths also pass the full-app r49 decoder test.
+The earlier published v0.1.0 uses the old design. Version 0.2.0 replaces it.
 
-Run `.venv/bin/python tools/check_native.py` to compile and test the new banks
-without changing `dist`, `VERSION`, or release files. Source files survived the
-computer crash; the newly created checkpoint document and runner were empty and
-have been restored.
+Recovery commits `3c560b8` and `7d54f4b` saved the native components before UI
+integration. This document records the implementation and tests so a crash
+does not lose the task context. `buildweather --check` builds and checks the
+complete standalone package. No user branding files were modified.
 
 ## Implemented components
 
@@ -23,7 +23,7 @@ have been restored.
   temperatures, large visibility values. JSON exports follow decode in the
   jump table: validate `$a006`, find `$a009`, next `$a00c`, skip `$a00f`.
 - Bank 22 `direct_weather`: country weather request builder and 15-minute
-  cache; compiled, but complete multi-city network/cache flow not yet tested.
+  cache; native country/cache transaction tests and live 20-city API checks pass.
 - Bank 24 `direct_inflate`: streaming zlib/DEFLATE, stored/fixed/dynamic blocks,
   checked trees/backreferences/output sizes and Adler-32. History uses 26–29.
 - Bank 3 `direct_png`: PNG CRC, five filters, 8-bit L/LA/RGB/RGBA/indexed color,
@@ -76,36 +76,52 @@ parameters; it is not a shipped asset or a persistent observation ID.
 - Bank 1 now obtains and validates NOAA/PAGASA metadata, extracts the public
   PAGASA session, generates nonces, signs requests, and downloads the selected
   image. Native request tests pass, including stale/future rejection. A live
-  native NOAA request downloaded a fresh frame. PAGASA accepted the signed
-  timeline request, but its latest observation was stale and correctly rejected.
+  native request downloaded fresh NOAA and PAGASA frames. An earlier stale
+  PAGASA timeline was correctly rejected before its provider updated.
 - Bank 23 decodes one PNG row per call and samples an 84x56 geographic grid in
   bank 25. Packing preserves precipitation locations, simplifying within the
   same cells only when needed to stay within 207 tiles. Philippine tiles include
   the checked `WCPBASE.BIN` geography asset, reusing released history bank 26.
 - Real r49 ROM PNG-to-WCR4 tests match every reference pixel: USA 67 tiles / 6
   emulated seconds; Philippines 184 tiles / 283 emulated seconds. Both used full
-  resolution without simplification. Philippine decoding needs incremental UI
+  resolution without simplification. Philippine decoding now uses incremental UI
   scheduling; this timing is not a physical-card test.
 - Native wire strings must use `\r\x0a`: Prog8 encodes `\n` as CR even in ISO
   strings. The request builders now emit actual CRLF and signatures actual LF.
 - `smoke_direct_radar.py us|ph path.png` runs isolated ROM integration checks.
 
-## Remaining work
+## Integration and verification
 
-1. Test the full native UART transport against physical card hardware when available.
-2. Integrate radar download/decoding/display into the application event loop.
-3. Native geocoding, saved personal coordinates, country switching, weather
-   cache orchestration, progress/cancellation and responsiveness.
-4. Loader/build integration, demo/hardware modes, simplified Wi-Fi wizard,
-   removal of bridge/file choices and bridge autostart.
-5. Packaging/docs, full regression/emulator tests, memory and machine-time
-   checks, then release preparation. Do not publish before these are ready.
+- Bank 12 contains native geocoding alongside scan/join. Queries are URL-escaped
+  and country-filtered; selection resolves the exact unsigned ID. Coordinates
+  roll back on forecast failure. All tests execute the compiled instructions.
+- Complete US/PH offline forecasts ship in WCDMUS/WCDMPH. Source modes are only
+  demo and Wi-Fi card. Home changes weather/geography together. The guided
+  wizard has no address field and run.sh no longer starts a bridge.
+- Bank 15 caches the validated map/header in BSS while tiles remain in VRAM.
+  HTTP scratch reuse cannot destroy the displayed map. Radar schedules are
+  five minutes US / ten minutes PH; current limits remain 15/30 minutes.
+- WS3 preferences store display choices and both countries' personal stations,
+  with checksum and coordinate validation. WS2 display preferences migrate
+  without using the bridge URL. Passwords remain outside the saved file.
+- Full-app r49 tests decode actual downloaded US/PH images with exact geographic
+  pixels while switching views and repeatedly overwriting HTTP scratch. Latest
+  processing times were 7 seconds US and about 301 seconds PH at emulated 8 MHz.
+- The r49 UI smoke verifies 17 frames and menu glyphs; the mouse probe verifies
+  75 routes, pointer pixels/hotspot, both countries and all 28 landscapes.
+- `test_direct_weather_flow.py --live` obtained and decoded all 20 cities.
+  `test_direct_radar.py --live` obtained fresh images for both countries.
+  These use native builders/decoders with a Python public-HTTP transport;
+  separate UART tests run the native framing/download transport. Physical-card
+  end-to-end testing has not been performed and is not claimed.
+- `smoke_native_app.py us|ph image.png` tests actual PNG processing, map/cache,
+  controls and ROM I/O in the full app with an isolated downloaded-image handoff.
+- Version 0.2.0 packages 69 PRG/BIN files in one WEATHER folder plus notices;
+  no bridge ZIP, user settings or downloaded image is included.
 
-Banks 1 (radar API) and 23 (renderer) are now occupied. Native geocoding
-will share the network bank after its legacy bridge transport is removed. Bank 25 holds
-previous-row storage and pending radar grid; 26–29 are the 32 KiB history.
-Existing code 4–19 and graphics 30–63 remain reserved, targeting stock 512 KiB.
-HTTP scratch overlaps the radar payload, so exchanges invalidate radar readiness.
+Banks 1–24 are code, 25–29 native image working data, 30–63 graphics. Bank 0 is
+reserved for the ROM. All modules fit their 8 KiB code+BSS ceilings; resident
+code stays below $6000. Geo no longer needs a swappable phase bank.
 
 Primary references: [ZiModem](https://github.com/bozimmerman/Zimodem),
 [Open-Meteo](https://open-meteo.com/en/docs),

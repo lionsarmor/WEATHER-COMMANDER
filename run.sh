@@ -10,26 +10,6 @@ if [[ "${1:-}" != "--no-build" ]]; then
 else
     shift
 fi
-weather_bridge_pid=""
-cleanup_weather_bridge() {
-    if [[ -n "$weather_bridge_pid" ]]; then
-        kill "$weather_bridge_pid" 2>/dev/null || true
-        wait "$weather_bridge_pid" 2>/dev/null || true
-    fi
-}
-trap cleanup_weather_bridge EXIT
-if [[ "${WEATHER_BRIDGE:-1}" != 0 ]]; then
-    "$weather_python" -m backend.server --bind "${WEATHER_BIND:-127.0.0.1}" \
-        --port "${WEATHER_PORT:-8767}" --output "$PWD/dist/sdcard" > build/bridge.log 2>&1 &
-    weather_bridge_pid=$!
-    # Give a cold fetch a short head start. The application handles unavailable
-    # or expired data and automatically picks up the bridge's next snapshot.
-    for weather_wait in {1..20}; do
-        if [[ -f dist/sdcard/WCDATA.BIN ]]; then break; fi
-        if ! kill -0 "$weather_bridge_pid" 2>/dev/null; then break; fi
-        sleep 0.25
-    done
-fi
 "$weather_tools/x16emu/x16emu" -rom "$weather_tools/x16emu/rom.bin" \
     -fsroot "$PWD/dist/sdcard" -startin "$PWD/dist/sdcard" \
     -prg "$PWD/dist/sdcard/WEATHER.PRG" -run -rtc -scale 2 "$@"

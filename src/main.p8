@@ -8,6 +8,8 @@
 %import ticker
 %import network_mailbox
 %import interaction
+%import direct_render_mailbox
+%import direct_locations
 
 main {
     extsub @bank 4 $a000 = station_init() clobbers(A,X,Y)
@@ -62,6 +64,18 @@ main {
     extsub @bank 19 $a000 = banner_init() clobbers(A,X,Y)
     extsub @bank 19 $a003 = banner_draw() clobbers(A,X,Y)
 
+    extsub @bank 1 $a000 = direct_radar_init()
+    extsub @bank 2 $a000 = direct_crypto_init()
+    extsub @bank 3 $a000 = direct_png_init()
+    extsub @bank 20 $a000 = direct_http_init()
+    extsub @bank 21 $a000 = direct_decode_init()
+    extsub @bank 22 $a000 = direct_weather_init()
+    extsub @bank 23 $a000 = direct_render_init()
+    extsub @bank 24 $a000 = direct_inflate_init()
+    extsub @bank 15 $a009 = radar_feed_step()
+    extsub @bank 15 $a00c = radar_feed_cancel()
+    extsub @bank 15 $a00f = radar_feed_restore()
+    ubyte radar_phase
     uword now
     uword last_refresh
     uword last_clock
@@ -116,6 +130,14 @@ main {
     sub load_all() -> bool {
         ubyte i
         str scene_file=iso:"WCSC00.BIN"
+        if not load_bank(iso:"WCRAPI.BIN",1) return false
+        if not load_bank(iso:"WCHASH.BIN",2) return false
+        if not load_bank(iso:"WCPNG.BIN",3) return false
+        if not load_bank(iso:"WCHTTP.BIN",20) return false
+        if not load_bank(iso:"WCJSON.BIN",21) return false
+        if not load_bank(iso:"WCWEATH.BIN",22) return false
+        if not load_bank(iso:"WCRMAKE.BIN",23) return false
+        if not load_bank(iso:"WCZLIB.BIN",24) return false
         if not load_bank(iso:"WCIDENT.BIN",4) return false
         if not load_bank(iso:"WCGEOG.BIN",5) return false
         if not load_bank(iso:"WCCOND.BIN",6) return false
@@ -292,10 +314,7 @@ main {
         ym,dh,ms,jw=cx16.clock_get_date_time()
         radar_was_ready=state.radar_ready
         radar_feed_age()
-        if radar_was_ready and not state.radar_ready {
-            radar_feed_refresh()
-            if state.page==state.RADAR draw_center()
-        }
+        if radar_was_ready and not state.radar_ready and state.page==state.RADAR draw_center()
         year=1900+lsb(ym)
         month=msb(ym)
         if month<1 or month>12 month=1
@@ -331,7 +350,6 @@ main {
         banner_draw()
         void strings.copy(iso:"ONLINE / DEG F / CLOCK LOCAL",status)
         if state.status==0 void strings.copy(iso:"DEMO / DEG F / CLOCK LOCAL",status)
-        if state.status==1 void strings.copy(iso:"FILE / DEG F / CLOCK LOCAL",status)
         if state.status==2 void strings.copy(iso:"STALE / DEG F / CLOCK LOCAL",status)
         for i in 1 to strings.length(status)-1 {
             if status[i]==70 and status[i-1]==32 {
@@ -355,6 +373,7 @@ main {
         else cx16.VERA_L1_MAPBASE=$d8
     }
     sub refresh() {
+        if state.source==0 radar_feed_cancel()
         provider_refresh()
         radar_feed_refresh()
         last_refresh=cbm.RDTIM16()
@@ -380,11 +399,12 @@ main {
     }
     sub finish_country() {
         if state.country_status!=3 return
+        radar_feed_cancel()
         state.city_action=3
-        state.source=2
         provider_refresh()
         state.city_action=0
         if state.extended and state.country==state.country_choice {
+            state.saved=false
             state.city=0
             state.home=0
             state.country_status=0
@@ -429,7 +449,8 @@ main {
             70,102 -> { if state.page==state.FORECAST state.forecast_mode=1-state.forecast_mode }
             71,103 -> { next_scene()
                 return }
-            82,114 -> { refresh()
+            82,114 -> { radar_feed_cancel()
+            refresh()
             return }
             29 -> { change_city(true)
             return }
@@ -452,7 +473,8 @@ main {
             65,97 -> { if state.page==state.SETTINGS state.automatic=not state.automatic }
             68,100 -> {
                 if state.page==state.SETTINGS {
-                    state.source=(state.source+1) % 3
+                    state.source=2-state.source
+                    radar_feed_cancel()
                     refresh()
                     return
                 }
@@ -541,11 +563,8 @@ main {
             if network_mailbox.action==6 {
                 network_mailbox.action=0
                 state.source=2
-                if state.wifi_host state.source=1
                 provider_refresh()
-                if state.wifi_host and not state.extended and state.status==2 state.status=0
                 radar_feed_refresh()
-                state.source=2
                 last_refresh=cbm.RDTIM16()
                 if state.status==3 {
                     state.wifi_step=4
@@ -559,10 +578,15 @@ main {
                     state.page=state.HOME }
                 else void strings.copy(iso:"WEATHER READY / COULD NOT SAVE SETTINGS",network_mailbox.notice)
             } else {
-                network_action()
+                if network_mailbox.action==5 {
+                    radar_feed_cancel()
+                    network_action()
+                    provider_refresh()
+                    radar_feed_refresh()
+                } else network_action()
                 if state.wifi_step==2 and network_mailbox.connection==3 {
                     state.wifi_step=3
-                    network_mailbox.focus=3
+                    network_mailbox.focus=0
                 }
             }
         }
@@ -605,6 +629,16 @@ main {
             txt.print(iso:"\r\nCOPY ALL DIST/SDCARD FILES TO DEVICE 8.\r\n")
             return
         }
+        direct_radar_init()
+        direct_crypto_init()
+        direct_png_init()
+        direct_http_init()
+        direct_decode_init()
+        direct_weather_init()
+        direct_render_init()
+        direct_inflate_init()
+        direct_locations.us_set=false
+        direct_locations.ph_set=false
         station_init()
         map_init()
         conditions_init()
@@ -640,7 +674,7 @@ main {
         state.scenery=0
         state.scene_bank=255
         state.wifi_step=0
-        state.wifi_host=true
+        state.wifi_host=false
         state.saved=false
         state.city_action=0
         state.city_dirty=false
@@ -667,8 +701,12 @@ main {
             if buttons&1 != 0 and old_buttons&1 == 0 handle_mouse()
             old_buttons=buttons
             pointer_update()
+            radar_phase=direct_render_mailbox.phase
+            radar_feed_step()
+            if radar_phase!=direct_render_mailbox.phase and state.page==state.RADAR draw_center()
             service_timers()
         }
+        radar_feed_cancel()
         cx16.mouse_config(0,0,0)
         restore_screen()
         txt.print(iso:"WEATHER COMMANDER CLOSED.\r\n")

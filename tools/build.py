@@ -11,6 +11,11 @@ MODULES={'station':'WCIDENT','map':'WCGEOG','conditions':'WCCOND','cities':'WCCI
          'network':'WCNET','wifi':'WCWIFI','radar_feed':'WCRFEED','preferences':'WCPREF','city_input':'WCADD','home':'WCHOME','banner':'WCBANNER'}
 BANKS={'station':4,'map':5,'conditions':6,'cities':7,'forecast':8,'radar':9,
        'settings':10,'about':11,'provider':13,'network':12,'wifi':14,'radar_feed':15,'preferences':16,'city_input':17,'home':18,'banner':19}
+MODULES.update({'direct_radar':'WCRAPI','direct_crypto':'WCHASH','direct_png':'WCPNG',
+                'direct_http':'WCHTTP','direct_weather_decode':'WCJSON','direct_weather':'WCWEATH',
+                'direct_render':'WCRMAKE','direct_inflate':'WCZLIB'})
+BANKS.update({'direct_radar':1,'direct_crypto':2,'direct_png':3,'direct_http':20,
+              'direct_weather_decode':21,'direct_weather':22,'direct_render':23,'direct_inflate':24})
 def main():
  if importlib.util.find_spec('PIL') is None:
   command=shlex.join([sys.executable,'-m','pip','install','-r',str(ROOT/'requirements.txt')])
@@ -21,6 +26,9 @@ def main():
   if not p.exists():raise SystemExit(f'Missing tool: {p}. Set X16_TOOLS to a toolchain directory (see README).')
  env=dict(os.environ,PATH=str(TOOLS/'bin')+os.pathsep+os.environ['PATH'])
  subprocess.run([sys.executable,'tools/build_assets.py'],cwd=ROOT,check=True)
+ subprocess.run([sys.executable,'tools/build_native_assets.py'],cwd=ROOT,check=True)
+ for native_asset in (BUILD/'native-assets').glob('*.BIN'):
+  (OUT/native_asset.name).write_bytes(native_asset.read_bytes())
  sizes={}
  for module,target in [('main','WEATHER')]+[(n+'_overlay',v) for n,v in MODULES.items()]:
   args=[str(java),'-jar',str(jar),'-target','cx16','-srcdirs','src','-out','build','-asmlist']

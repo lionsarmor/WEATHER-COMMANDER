@@ -12,8 +12,7 @@ fi
 "$weather_python" tools/build.py
 if [[ "${1:-}" == --check ]]; then
     "$weather_python" tools/check.py
-    "$weather_python" tools/test_weather.py
-    "$weather_python" tools/test_cities.py
+    "$weather_python" tools/check_native.py
 fi
 "$weather_python" tools/package.py
 "$weather_python" tools/test_package.py

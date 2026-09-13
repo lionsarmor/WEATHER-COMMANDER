@@ -1,9 +1,9 @@
 # Weather and radar wire formats
 
-The backend writes `WCDATA.BIN` and `WCRLIVE.BIN` atomically. The native client
-validates headers, sizes, checksums, indices, ranges, and timestamps before use.
-The network endpoints deliver the same bytes as uppercase hexadecimal prefixed
-with `WC2:` and followed by CR/LF. No pointers or credentials occur in a feed.
+These are internal bank-to-bank formats. The native Wi-Fi workers create them
+from public JSON/PNG responses; the application no longer reads host-generated
+weather/radar files or hexadecimal bridge endpoints. Headers, sizes, checksums,
+indices, ranges and timestamps validate before data reaches the display.
 
 ## WCW2 weather: 1,024 bytes
 
@@ -14,7 +14,7 @@ with `WC2:` and followed by CR/LF. No pointers or credentials occur in a feed.
 | 6 | 1 | Latest upstream fetch healthy: 0/1 |
 | 7 | 1 | Radar has been fetched: 0/1; radar is validated separately |
 | 8 | 2 | Little-endian additive checksum of bytes 6–7 and 10–1023 |
-| 10 | 5 | Fetch year minus 1900, month, day, hour, minute (bridge-local) |
+| 10 | 5 | Fetch year minus 1900, month, day, hour, minute (X16-local) |
 | 15 | 1 | Country profile: 0 USA, 1 Philippines |
 | 16 | 16 | Reserved |
 | 32 | 320 | Ten 32-byte current/overnight/next-day records |
@@ -37,12 +37,12 @@ precipitation chance %; 11 UV index ×10; 12 wind compass index (0–15);
 Daily records: high °F, low °F, condition, precipitation chance %.
 Hourly records: temperature °F, condition, precipitation chance %.
 Conditions: 0 clear/night, 1 sunny, 2 cloudy, 3 rain, 4 snow, 5 storms, 6 fog,
-7 windy. Unavailable upstream values cause the adapter to retain a stale prior
+7 windy. Unavailable upstream values cause the native provider to retain a stale prior
 snapshot; they are not replaced with fabricated zero readings.
 
 Stations: home (Chicago initially), New York, Los Angeles, Chicago, Houston,
 Miami, Denver, Seattle, Boston, San Francisco. Settings can make any selected
-station the startup home. The adapters define coordinates in `backend/weather.py`.
+station the startup home. Native station coordinates are in `src/direct_stations.p8`.
 The Add City screen replaces the first station with a saved personal location;
 the other nine stations retain their names and coordinates.
 
@@ -52,14 +52,13 @@ selects the station labels and map together with the validated observations.
 
 ## City search and selection
 
-The native Add City screen uses the same bounded messages through HostFS and
-`/x16/city.hex?request=<128 hex digits>`. HostFS writes `WCQUERY.BIN`; the bridge
-polls it and atomically writes `WCCITIES.BIN`. The bridge searches
-[Open-Meteo geocoding](https://open-meteo.com/en/docs/geocoding-api) and returns
-up to five matches for explicit selection. A successful selection fetches and
-validates the full weather snapshot before saving `locations.json` and responding.
+The native Add City screen sends a bounded in-memory request to bank 12.
+That bank calls Open-Meteo geocoding directly and returns up to five matches.
+Selecting a match resolves its ID, stages coordinates and fetches all ten
+forecasts. Failure restores the previous personal station. Save preferences
+persists the coordinates; no query/reply files are used.
 
-A request is 64 bytes: `WCC1` at 0–3, operation (1 search, 2 select city, 3 select country) at 4,
+A request is 64 bytes: `WCC1` at 0–3, operation (1 search, 2 select city) at 4,
 request serial at 5, reserved at 6–7, NUL-terminated ASCII query at 8–55,
 little-endian location ID at 56–59, additive checksum of 0–59 at 60–61, and
 reserved at 62–63. A response is 256 bytes: an exact echo of the request at
@@ -67,8 +66,8 @@ reserved at 62–63. A response is 256 bytes: an exact echo of the request at
 count at 65, NUL-terminated notice at 66–95, then five 32-byte results starting
 at 96. Each result has a four-byte location ID and a 28-byte NUL-terminated
 ASCII label. The client rejects mismatched requests, malformed sizes and text;
-it times out after 45 seconds and retains the editable query for retry.
-These runtime request, response and city preference files are not packaged.
+network failures retain the editable query for retry. Country changes use a
+separate resident transaction and also work with the two offline demo assets.
 
 ## WCR4 country radar: 8,992 bytes
 
@@ -77,7 +76,7 @@ These runtime request, response and city preference files are not packaged.
 | 0 | 4 | ASCII `WCR4` |
 | 4 | 1 | Tile count, 1–207 |
 | 5 | 1 | Country: 0 USA / NOAA, 1 Philippines / PAGASA |
-| 6 | 5 | Provider observation timestamp, converted to bridge-local time |
+| 6 | 5 | Provider observation timestamp, converted to X16-local time |
 | 11 | 1 | Recorded demo flag: 0 actual feed, 1 bundled demo |
 | 12 | 2 | Little-endian checksum of bytes 4–11 and 14–8991 |
 | 14 | 1 | Last upstream attempt failed: 0 healthy, 1 failed |
@@ -88,36 +87,27 @@ These runtime request, response and city preference files are not packaged.
 The first tile is transparent; the next seven are stable solid legend swatches.
 Remaining US tiles represent precipitation echoes over the native basemap.
 Philippine tiles combine the island geography and rain rate in the same tile
-budget. The client rejects WCR2/WCR3; update the bridge and client together.
+budget. The client rejects older WCR2/WCR3 payloads.
 
 Country, demo and health flags are covered by the checksum. Live validation
-rejects demo-marked packets even if copied to WCRLIVE.BIN. Freshness limits are
+rejects demo-marked packets. Freshness limits are
 15 minutes for US and 30 minutes for PH; midnight/month/year rollover is handled.
 WCRDEMO.BIN and WCRDPH.BIN are packaged recorded samples, accepted only through
-the demo path and always labeled as such. A network transfer is tried before
-an SD cache, and invalid, stale or wrong-country packets fall back to the demo.
+the demo path and always labeled as such. Native radar downloads are PNG files
+named WCRPNG.BIN; the decoder produces WCR4 in RAM after full image validation.
+Invalid, stale or wrong-country images are unavailable in Wi-Fi mode.
 
-## Legacy WC16 snapshots
+## WS3 preferences: 100 bytes
 
-`tools/pack_weather.py` remains available for the original 128-byte version-1
-format and demo JSON. It has ASCII `WC16`, version 1, ten stations, an additive
-checksum at bytes 8–9 over records 16–95, and ten eight-byte current-weather
-records. Those records use the first eight offsets above and conditions 0–3.
-Legacy files are labeled FILE SNAPSHOT and have no extended forecast fields.
-They are not treated as a live connection.
+`WCSETUP.BIN` contains `WS`, version 3, units at 3, interval at 4,
+automatic mode at 5, source (0 demo / 2 card) at 6, home index at 7, and country
+at 8. Bytes 9–15 are reserved. Bytes 16–55 and 56–95 contain the US and PH
+personal station: NUL-terminated latitude (12 bytes), longitude (12), name (16).
+Bytes 96–97 indicate whether each station is set. Bytes 98–99 hold the
+little-endian sum of bytes 0–97. The loader checks ranges, string bounds,
+coordinates and checksum before changing app state.
 
-```sh
-python3 tools/pack_weather.py assets/demo-weather.json dist/sdcard/WCDATA.BIN
-```
-
-`WCSETUP.BIN` is separate: 144 bytes with `WS`, version 2, units, interval,
-automatic mode, source, home index, then a NUL-terminated bridge URL at offset
-16. It contains no Wi-Fi password. Distribution packages exclude all three
-runtime files and include the bridge source instead.
-
-Country selection uses operation 3 with `US` or `PH` in the query field.
-Status 2 means the new country snapshot is ready; failure retains the prior
-profile. `locations.json` stores the active country and a personal location per
-country, with automatic migration from older `city.json` files. The native
-client validates the requested country before displaying the new snapshot.
-Philippines snapshots advertise only fresh Philippine radar availability.
+The old 144-byte WS2 file can migrate display preferences, ignoring its bridge
+URL and mapping the old local-file source to demo. The app only overwrites
+preferences after Save. Passwords are not stored. The original WC16 packer
+remains a development reference; it is not an application data-source option.

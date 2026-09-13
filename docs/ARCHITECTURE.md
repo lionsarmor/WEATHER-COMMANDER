@@ -10,6 +10,9 @@ and the build checks every packaged bank against 8,192 bytes.
 | Bank | Binary | Responsibility |
 |---|---|---|
 | Resident | WEATHER.PRG | Shell, input, clock, ticker, scheduler |
+| 1 | WCRAPI.BIN | NOAA/PAGASA metadata, public session, signed image requests |
+| 2 | WCHASH.BIN | SHA/HMAC and UTC timestamps |
+| 3 | WCPNG.BIN | Streaming PNG reader, CRC and scanline filters |
 | 4 | WCIDENT.BIN | Time-of-day selection and the scenery tilemap |
 | 5 | WCGEOG.BIN | National map, regional comparison, local weather |
 | 6 | WCCOND.BIN | Selected city's current/tonight/tomorrow statistics |
@@ -18,14 +21,21 @@ and the build checks every packaged bank against 8,192 bytes.
 | 9 | WCRADAR.BIN | National radar display |
 | 10 | WCSET.BIN | Clickable settings cards |
 | 11 | WCABOUT.BIN | About and help |
-| 12 | WCNET.BIN | TexElec/ZiModem driver, scan/join, bounded HTTP transfer |
-| 13 | WCPROV.BIN | Demo/file/network provider, validation, freshness |
+| 12 | WCNET.BIN | TexElec/ZiModem scan/join and native geocoding |
+| 13 | WCPROV.BIN | Demo/native weather validation and freshness |
 | 14 | WCWIFI.BIN | Full-page Wi-Fi setup and credential entry |
-| 15 | WCRFEED.BIN | Country radar validation, demo fallback, VRAM upload |
+| 15 | WCRFEED.BIN | Radar scheduling, map cache, validation and VRAM upload |
 | 16 | WCPREF.BIN | Load/save session preferences |
-| 17 | WCADD.BIN | City text entry, search results, selection and request polling |
-| 18 | WCHOME.BIN | Country picker and bounded country request polling |
+| 17 | WCADD.BIN | City text entry, search results, selection and native request handoff |
+| 18 | WCHOME.BIN | Country picker and transactional profile changes |
 | 19 | WCBANNER.BIN | Centered double-size clock/location; reserved bitmap at $AE80–$BFFF |
+| 20 | WCHTTP.BIN | Stock ZiModem raw TLS, HTTP framing, RAM/SD downloads |
+| 21 | WCJSON.BIN | JSON parsing and one-city weather decoding |
+| 22 | WCWEATH.BIN | Ten-city requests and two 15-minute country caches |
+| 23 | WCRMAKE.BIN | Cooperative radar sampling and bounded tile packing |
+| 24 | WCZLIB.BIN | Streaming zlib/DEFLATE with Adler validation |
+| 25 | Working RAM | Previous PNG row and pending 84×56 radar grid |
+| 26–29 | Working RAM | 32 KiB DEFLATE history; bank 26 reused for PH basemap after decode |
 | 30–31 | WCHART / WCPH | Country postcard and Philippines maps for layer 1 |
 | 32–35 | WCNAT / WCREG / WCRAD / WCBLK | Cached artwork maps |
 | 36–63 | WCSC00.BIN–WCSC27.BIN | Seven landscapes × dawn/day/dusk/night; 6,080 bytes each |
@@ -45,20 +55,28 @@ exact binary sizes in `build/banks.json` and VRAM allocations in
 | `$6801–$694F` | Ten scanned SSIDs and scan selection |
 | `$6950–$6970` | Selected/typed SSID |
 | `$6980–$69BF` | Password; masked and cleared after use/exit |
-| `$69C0–$6A88` | Setup controls, status, URL and transfer mailbox |
+| `$69C0–$6A88` | Setup controls and transfer mailbox; former URL space unused |
 | `$6B00–$6B3F` | Bounded city search/selection request shared with the network bank |
 | `$6C00–$6D00` | Bounded modem response transcript |
 | `$6D20–$6D5F` | Two bounded strings for the clock/location banner |
-| `$7000–$931F` | Country radar tile payload and map; extra read byte at `$9320` |
+| `$6D70–$6EFF` | Native HTTP / JSON / weather mailboxes |
+| `$6F00–$6FFF` | PNG / inflate / radar / crypto / UTC mailboxes |
+| `$7000–$931F` | HTTP body, PNG row, then completed radar payload; shared scratch |
+| `$8000–$8FFF` | HTTP request, fully sent before body overwrites it |
 | `$9800–$9821` | Shared app state |
 | `$9840–$988F` | Compact ten-city current-weather records |
+| `$9890–$98E1` | Two personal coordinate/name records and validity flags |
 | `$9A00–$9BFF` | Saved system palette |
 | `$9C00–$9C06` | Saved Layer 1 registers |
 
 All snapshots validate before replacing active weather. The extra weather-read
 byte at `$6800` detects oversized files without touching the scan mailbox.
-Radar has a separate bounded area. Credential and URL buffers are cleared on
-startup; passwords are never copied into the preference file.
+Native exchanges reuse the radar scratch. Bank 15 keeps the validated radar
+header and tilemap in private BSS, while its tiles remain in VRAM. Restoring
+that cache preserves the displayed map across weather requests. PNG compressed
+input stays in bank 3 and previous-row/history data stay in banks 25–29, so
+HTTP requests between completed scanlines cannot corrupt the decoder.
+Passwords are cleared after use and never copied into the preference file.
 
 ## VERA
 
@@ -98,33 +116,42 @@ hit map. The ROM maintains sprite zero with a (0,0) click tip. Both cursor
 frames contain the same plain white arrow with a black outline. Its source-pixel tip is (0,7);
 the ROM sprite offset is (0,-7), keeping the visible arrow tip at the click coordinate.
 
-NOAA's CONUS reflectivity raster is fetched separately from any map or labels.
-The bridge selects the newest CONUS raster ID, preserving its observation time
-(overseas mosaics may have different times). It reprojects the transparent
-echo layer onto the same spherical Albers map as the dashboard. Samples use
-two-pixel cells; rare tiles simplify to occupied four-pixel quadrants instead
-of borrowing a different storm pattern. A bounded 207-tile codebook includes
-seven stable legend swatches. The map remains native resolution underneath.
-Palette 15 provides green terrain, mint borders, blue ocean scanlines and brighter
-blue/green/yellow/orange/red/magenta
-echoes. WCR4 maps explicitly select that palette; the loader rejects WCR2/WCR3 files.
-The 8,992-byte feed uses conventional RAM, and cannot overwrite text, weather
-icons, the shell, or either text map. Stale radar is hidden even in manual mode.
+NOAA's CONUS request locks the newest valid raster and requests an 84×56 PNG
+in the dashboard's spherical Albers projection. Native integer color decoding
+maps it to seven reflectivity levels. PAGASA uses the public embedded page's
+session values and HMAC-SHA-256 signature; UTC comes from HTTP Date rather
+than assuming the X16 clock's timezone. Its 750×1024 gray/alpha PNG is sampled
+through verified bounds and rain-rate scale into the same 84×56 grid.
 
-The Wi-Fi bank owns a five-view wizard (choice, networks, password, weather
-computer, ready). Detection is part of scanning; joining advances to the
-weather address. A bare host/IP becomes an HTTP URL on port 8767. The computer
-path reads the host snapshot without probing the modem. Get Weather and Save
-actions are delegated to the resident core to keep bank calls and I/O bounded.
-The wizard owns its footer and suspends the dashboard ticker.
+Bank 23 processes one scanline per event-loop call. The app continues handling
+mouse, keyboard, clock and scenery between calls. Only a complete image with
+valid CRC/Adler, dimensions, map coordinates and observation time can reach the
+packer. The 207-tile codebook keeps precipitation in its original cells;
+if necessary, it simplifies spatial detail in place at 2, 4 or 8 pixels.
+Philippine geography and rain share the bounded codebook. `WCPBASE.BIN` is read
+only after decoding closes the PNG, reusing released history bank 26.
 
-The real 60 Hz jiffy clock drives weather refresh (30/60/120 seconds), the clock,
-and ticker. Unsigned subtraction handles ordinary 16-bit timer rollover. The
-clock checks weather age even when automatic fetching is disabled. File I/O
-and modem operations are synchronous but bounded. Exit restores the system
-palette, original Layer 1 registers, ROM charset, and cleared BASIC screen.
+Bank 15 schedules radar roughly every five minutes (US) or ten minutes (PH),
+keeps a previous fresh map while decoding, and rejects stale observations.
+The real r49 full-app tests took 7 seconds for US and 299 seconds for PH.
+Both matched the geographic pixel reference while UI changes and simulated
+weather exchanges repeatedly overwrote the conventional scratch area.
 
-See [host bridge and Wi-Fi](HOST-BRIDGE.md) and [wire formats](SNAPSHOT.md).
+The Wi-Fi wizard has choice, networks, password, connected and ready views.
+The choices are demo and real-card mode. Get Weather and Save actions return
+to the resident core; no bridge address is stored or requested. City search
+and ID resolution run in bank 12 and weather in bank 22. Coordinates are only
+committed after all ten new forecasts validate; failure restores the prior
+personal station. Preferences use a checksummed 100-byte WS3 file containing
+both countries' coordinates. Legacy WS2 display settings migrate on load.
+
+The 60 Hz jiffy clock drives display checks (30/60/120 seconds), clock and
+ticker. Bank 22 caches each complete country for 15 minutes. First network
+requests are synchronous and bounded; PNG processing is cooperative. Country
+changes cancel decoding before switching its working data. Exit closes the
+PNG and restores the system palette, Layer 1 registers, ROM charset and BASIC.
+
+See [Wi-Fi setup](WIFI.md) and [internal wire formats](SNAPSHOT.md).
 
 National uses seven full-color 24×24 weather symbols with smaller temperature
 labels. Shared tiles occupy control glyphs 0–31 and free space after the country
@@ -139,20 +166,14 @@ Home and National are separate views. Home uses two pixel postcards, and
 National chooses the US or Natural Earth Philippines geography according to
 the validated snapshot profile. The resident core copies country art from data
 banks to the inactive text map; the content bank draws the labels above it.
-Country switching reuses the bounded city wire envelope with operation 3 and
-blocks conflicting requests until success, failure or the 45-second timeout.
+Country switching commits geography and weather together after a complete
+country snapshot loads; offline mode uses its matching complete demo asset.
 
 The banner uses a 280×32 pixel bitmap in bank 19 and 140 reserved layer-0
 tiles. The shared 5×7 font is doubled to 10×14 with a 12-pixel advance. Each
 line is centered independently and has one pixel of vertical breathing room
 inside its 16-pixel line. Unchanged strings skip both rendering and VRAM writes.
 
-Philippine radar uses PAGASA/Panahon's public rain-rate timeline and timestamp-keyed
-raster. The public browser-session handshake stays inside the bridge. The first
-channel decodes to `(R/255)^2 * 80` mm/h; alpha masks missing data. Web Mercator
-source bounds are reprojected to the native island map. Terrain and echoes share
-the 207-tile budget; sampling is coarsened in place only when necessary.
-
-Radar demo state is at $9821. Recorded samples load from WCRDEMO/WCRDPH; the flag
-is checksummed and cannot pass live validation. Fresh modem data has priority
-over SD cache. Wi-Fi displays radar readiness separately from weather.
+Radar demo state is at `$9821`. Recorded samples load from WCRDEMO/WCRDPH
+only in demo mode. Their flag is checksummed and cannot pass live validation.
+In Wi-Fi mode, a missing or stale observation is shown as unavailable.

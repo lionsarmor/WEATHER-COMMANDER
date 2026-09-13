@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check actual release folders, bridge dependencies and failed-build safety."""
+"""Check actual release folders, native dependencies and failed-build safety."""
 import hashlib
 import re
 import tempfile
@@ -16,7 +16,7 @@ class PackageTests(unittest.TestCase):
             self.assertEqual(set(archive.namelist()), {'WEATHER/' + name for name in RUNTIME_FILES} |
                              {'WEATHER/START-HERE.TXT', 'WEATHER/DATA-NOTICE.TXT'})
             runtime = set(RUNTIME_FILES)
-            personal = {'WCDATA.BIN', 'WCRLIVE.BIN', 'WCSETUP.BIN', 'WCQUERY.BIN', 'WCCITIES.BIN'}
+            personal = {'WCDATA.BIN', 'WCRLIVE.BIN', 'WCSETUP.BIN', 'WCQUERY.BIN', 'WCCITIES.BIN', 'WCRPNG.BIN'}
             for source in (ROOT / 'src').glob('*.p8'):
                 for name in re.findall(r'"(WC[A-Z0-9]+\.BIN)"', source.read_text()):
                     self.assertIn(name, runtime | personal)
@@ -24,15 +24,15 @@ class PackageTests(unittest.TestCase):
                 self.assertEqual(archive.read('WEATHER/' + name), (ROOT / 'dist/sdcard' / name).read_bytes())
                 self.assertTrue(archive.read('WEATHER/' + name))
 
-    def test_bridge_release_has_imports_and_map(self):
-        with ZipFile(ROOT / 'dist/WEATHER-COMMANDER-BRIDGE.zip') as archive:
-            self.assertIsNone(archive.testzip())
-            for source in (ROOT / 'backend').glob('*.py'):
-                self.assertEqual(archive.read('WEATHER-BRIDGE/backend/' + source.name), source.read_bytes())
-            self.assertTrue(archive.read('WEATHER-BRIDGE/assets/data/philippines.geojson'))
-            self.assertTrue(archive.getinfo('WEATHER-BRIDGE/bridge.sh').external_attr >> 16 & 0o111)
-            self.assertTrue(all(name.startswith('WEATHER-BRIDGE/') for name in archive.namelist()))
-            self.assertFalse(any(Path(name).name in ('locations.json', 'city.json', 'bridge-status.json') for name in archive.namelist()))
+    def test_native_runtime_has_no_bridge_dependency(self):
+        with ZipFile(ROOT / 'dist/WEATHER-COMMANDER-X16.zip') as archive:
+            setup=archive.read('WEATHER/START-HERE.TXT').decode()
+            self.assertIn('No bridge computer',setup)
+            self.assertNotIn('BRIDGE.zip',setup)
+            self.assertFalse(any(name.endswith('.py') for name in archive.namelist()))
+            self.assertTrue({'WCPNG.BIN','WCZLIB.BIN','WCRAPI.BIN','WCWEATH.BIN','WCPBASE.BIN'} <= set(RUNTIME_FILES))
+        self.assertNotIn('backend.server',(ROOT/'run.sh').read_text())
+        self.assertFalse((ROOT/'dist/WEATHER-COMMANDER-BRIDGE.zip').exists())
 
     def test_checksums(self):
         for line in (ROOT / 'dist/SHA256SUMS.txt').read_text().splitlines():

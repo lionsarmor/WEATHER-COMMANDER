@@ -3,7 +3,6 @@
 %import interaction
 wifi {
     ubyte[64] line
-    ubyte[128] address
     sub clear_password() {
         ubyte i
         for i in 0 to 63 network_mailbox.password[i]=0
@@ -30,11 +29,12 @@ wifi {
         network_mailbox.focus=2
         state.wifi_step=2
     }
-    sub computer() {
-        state.wifi_host=true
-        state.wifi_step=3
+    sub demo() {
+        state.source=0
+        state.wifi_step=0
         network_mailbox.focus=0
-        network_mailbox.action=6
+        network_mailbox.action=5
+        state.page=state.SETTINGS
     }
     sub modem() {
         state.wifi_host=false
@@ -42,48 +42,10 @@ wifi {
         network_mailbox.focus=0
         network_mailbox.action=1
     }
-    sub normalize_address() -> bool {
-        ubyte i
-        ubyte n=strings.length(network_mailbox.url)
-        ubyte p=0
-        bool port=false
-        if n==0 { void strings.copy(iso:"ENTER YOUR WEATHER COMPUTER ADDRESS",network_mailbox.notice)
-            return false }
-        while n>0 and network_mailbox.url[n-1]==47 { n-- }
-        if n==0 return false
-        if n>=7 and network_mailbox.url[0]==104 and network_mailbox.url[4]==58 {
-            for i in 0 to 6 address[i]=network_mailbox.url[i]
-            p=7
-            i=7
-        } else { void strings.copy(iso:"http://",address)
-            p=7
-            i=0 }
-        while i<n {
-            if network_mailbox.url[i]==58 port=true
-            if network_mailbox.url[i]==47 or network_mailbox.url[i]==32 or p>=119 {
-                void strings.copy(iso:"USE A COMPUTER IP OR HOST NAME ONLY",network_mailbox.notice)
-                return false
-            }
-            address[p]=network_mailbox.url[i]
-            i++
-            p++
-        }
-        if not port {
-            address[p]=58
-            address[p+1]=56
-            address[p+2]=55
-            address[p+3]=54
-            address[p+4]=55
-            p+=5
-        }
-        address[p]=0
-        void strings.copy(address,network_mailbox.url)
-        return true
-    }
     sub primary() {
         network_mailbox.focus=0
         when state.wifi_step {
-            0 -> computer()
+            0 -> demo()
             1 -> network_mailbox.action=1
             2 -> {
                 if network_mailbox.ssid[0]==0 { network_mailbox.focus=1
@@ -91,11 +53,7 @@ wifi {
                     return }
                 network_mailbox.action=3
             }
-            3 -> {
-                if not state.wifi_host and not normalize_address() { network_mailbox.focus=3
-                    return }
-                network_mailbox.action=6
-            }
+            3 -> network_mailbox.action=6
             4 -> network_mailbox.action=7
         }
     }
@@ -135,10 +93,10 @@ wifi {
         when state.wifi_step {
             0 -> {
                 ui.text(10,16,$26,iso:"HOW ARE YOU USING WEATHER COMMANDER?")
-                ui.card(8,19,64,10,iso:"1  ON THIS COMPUTER  >")
-                ui.text(11,22,$15,iso:"USE MY COMPUTER'S INTERNET")
-                ui.text(11,25,$16,iso:"PLAYING IN THE EMULATOR? THIS IS YOUR OPTION.")
-                ui.text(11,27,$14,iso:"NO MODEM OR WI-FI PASSWORD NEEDED HERE.")
+                ui.card(8,19,64,10,iso:"1  EXPLORE THE OFFLINE DEMO  >")
+                ui.text(11,22,$15,iso:"START WITH SAMPLE WEATHER")
+                ui.text(11,25,$16,iso:"EXPLORE EVERY WEATHER SCREEN WITHOUT INTERNET.")
+                ui.text(11,27,$14,iso:"RECORDED RADAR IS CLEARLY MARKED AS DEMO.")
                 ui.card(8,32,64,10,iso:"2  ON A REAL COMMANDER X16  >")
                 ui.text(11,35,$15,iso:"CONNECT MY WI-FI MODEM")
                 ui.text(11,38,$16,iso:"WE'LL FIND YOUR NETWORK AND CONNECT TO WEATHER.")
@@ -159,9 +117,9 @@ wifi {
                 if network_mailbox.count==0 {
                     if network_mailbox.connection==1 {
                         ui.text(12,23,$15,iso:"NO WI-FI MODEM WAS FOUND")
-                        ui.text(12,26,$16,iso:"ON A COMPUTER? USE ITS INTERNET CONNECTION.")
+                        ui.text(12,26,$16,iso:"CHECK YOUR CARD, OR EXPLORE THE OFFLINE DEMO.")
                         ui.fill(12,32,56,3,$51)
-                        ui.centered(12,32,56,3,$51,iso:"USE MY COMPUTER'S INTERNET >")
+                        ui.centered(12,32,56,3,$51,iso:"START WITH SAMPLE WEATHER >")
                     } else {
                         ui.text(12,23,$15,iso:"LET'S FIND YOUR NETWORK")
                         ui.text(12,26,$16,iso:"CLICK SCAN NETWORKS BELOW TO TRY AGAIN.")
@@ -180,22 +138,12 @@ wifi {
                 ui.text(11,39,$14,iso:"YOUR PASSWORD IS NOT SAVED ON THE SD CARD.")
             }
             3 -> {
-                if state.wifi_host {
-                    ui.card(8,19,64,22,iso:"YOUR COMPUTER HANDLES THE CONNECTION")
-                    ui.text(11,23,$15,iso:"NO WI-FI SETUP NEEDED INSIDE THE EMULATOR")
-                    ui.text(11,27,$16,iso:"LAUNCH WITH WEATHERCMD TO START THE WEATHER FEED.")
-                    ui.text(11,31,$16,iso:"CHECK THAT YOUR COMPUTER CAN REACH THE INTERNET.")
-                    ui.text(11,35,$14,iso:"THEN CLICK GET MY WEATHER TO CHECK AGAIN.")
-                } else {
-                    ui.card(8,19,64,24,iso:"WI-FI CONNECTED / ONE LAST STEP")
-                    ui.text(11,22,$16,iso:"START BRIDGE.SH ON YOUR WEATHER COMPUTER.")
-                    ui.text(11,25,$16,iso:"ENTER THE COMPUTER ADDRESS SHOWN THERE.")
-                    ui.text(11,29,$14,iso:"WEATHER COMPUTER ADDRESS")
-                    field(31,3,network_mailbox.url,false)
-                    if network_mailbox.url[0]==0 and network_mailbox.focus!=3 ui.centered(11,31,58,3,$14,iso:"EXAMPLE: 192.168.1.20")
-                    ui.text(11,36,$14,iso:"JUST THE IP IS ENOUGH. WE ADD THE HTTP AND PORT.")
-                    ui.text(11,40,$14,iso:"KEEP THE WEATHER BRIDGE RUNNING ON THAT COMPUTER.")
-                }
+                ui.card(8,19,64,24,iso:"WI-FI CONNECTED / READY FOR WEATHER")
+                ui.text(11,23,$15,iso:"YOUR X16 CONNECTS DIRECTLY TO PUBLIC APIS")
+                ui.text(11,27,$16,iso:"OPEN-METEO: CURRENT WEATHER + FORECASTS")
+                ui.text(11,30,$16,iso:"NOAA + PAGASA: CURRENT RADAR IMAGES")
+                ui.text(11,34,$14,iso:"CLICK GET MY WEATHER TO LOAD YOUR STATIONS.")
+                ui.text(11,38,$14,iso:"THE FIRST UPDATE MAY TAKE A MINUTE.")
             }
             4 -> {
                 ui.card(8,19,64,23,iso:"YOU'RE CONNECTED!")
@@ -203,7 +151,7 @@ wifi {
                 ui.text(12,27,$16,iso:"CURRENT WEATHER, CITY REPORTS AND FORECASTS")
                 ui.text(12,30,$16,iso:"WILL UPDATE AUTOMATICALLY.")
                 if state.radar_ready ui.text(12,34,$14,iso:"RADAR: LIVE FEED / OBSERVATION TIME SHOWN")
-                else ui.text(12,34,$14,iso:"RADAR: DEMO UNTIL A FRESH FEED ARRIVES")
+                else ui.text(12,34,$14,iso:"RADAR BUILDS IN THE BACKGROUND WHEN AVAILABLE")
                 ui.text(12,38,$16,iso:"SAVE THESE SETTINGS AND LET'S WATCH THE WEATHER.")
             }
         }
@@ -215,7 +163,7 @@ wifi {
         else ui.centered(8,54,20,3,$45,iso:"< BACK")
         ui.fill(42,54,30,3,$51)
         when state.wifi_step {
-            0 -> ui.centered(42,54,30,3,$51,iso:"USE THIS COMPUTER >")
+            0 -> ui.centered(42,54,30,3,$51,iso:"OPEN DEMO >")
             1 -> ui.centered(42,54,30,3,$51,iso:"SCAN NETWORKS >")
             2 -> ui.centered(42,54,30,3,$51,iso:"CONNECT TO WI-FI >")
             3 -> ui.centered(42,54,30,3,$51,iso:"GET MY WEATHER >")
@@ -235,7 +183,6 @@ wifi {
                 if network_mailbox.focus==1 network_mailbox.focus=2
                 else network_mailbox.focus=1
             }
-            if state.wifi_step==3 and not state.wifi_host network_mailbox.focus=3
             return
         }
         if ch==13 {
@@ -250,8 +197,6 @@ wifi {
             limit=32
             if network_mailbox.focus==2 { fieldptr=&network_mailbox.password
                 limit=63 }
-            if network_mailbox.focus==3 { fieldptr=&network_mailbox.url
-                limit=112 }
             size=strings.length(fieldptr)
             if ch==20 or ch==8 { if size>0 @(fieldptr+size-1)=0
                 return }
@@ -266,7 +211,7 @@ wifi {
         if ch==88 or ch==120 { leave()
             return }
         if state.wifi_step==0 {
-            if ch==49 computer()
+            if ch==49 demo()
             if ch==50 modem()
         }
         if state.wifi_step==1 {
@@ -303,9 +248,6 @@ wifi {
                 if interaction.inside(88,168,552,208) interaction.choose(3,1)
                 if interaction.inside(88,216,552,256) interaction.choose(3,2)
             }
-            3 -> {
-                if not state.wifi_host and interaction.inside(88,232,552,272) interaction.choose(3,3)
-            }
         }
     }
     sub click() {
@@ -316,7 +258,7 @@ wifi {
                 selected() }
             3 -> network_mailbox.focus=state.pointer_target
             4 -> primary()
-            5 -> computer()
+            5 -> demo()
             6 -> modem()
             7 -> leave()
             8 -> { state.wifi_step=2

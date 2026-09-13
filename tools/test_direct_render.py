@@ -97,6 +97,13 @@ def unpack(raw):
     return pixels
 
 class RenderTests(unittest.TestCase):
+    def test_stale_image_cannot_become_a_live_map(self):
+        for country,age in ((0,901),(1,1801)):
+            renderer = Renderer(bytes(4704),country,build() if country else None)
+            renderer.memory[0x6f2a:0x6f2c] = age.to_bytes(2,'little')
+            renderer.call(0xa009)
+            self.assertEqual(renderer.memory[0x6f2c],4)
+
     def test_isolated_echoes_keep_their_coordinates(self):
         grid = bytearray(4704)
         grid[10*84+8] = 5

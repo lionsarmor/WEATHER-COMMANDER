@@ -1,8 +1,67 @@
 %import diskio
 %import state
 %import network_mailbox
+%import direct_radar_mailbox
+%import direct_render_mailbox
 radar_feed {
     extsub @bank 12 $a009 = network_radar() clobbers(A,X,Y)
+    extsub @bank 23 $a003 = render_begin()
+    extsub @bank 23 $a006 = render_next()
+    extsub @bank 23 $a009 = render_pack()
+    extsub @bank 23 $a00c = render_cancel()
+    ubyte[16] header
+    ubyte[256] map0
+    ubyte[256] map1
+    ubyte[256] map2
+    ubyte[256] map3
+    ubyte[256] map4
+    ubyte[256] map5
+    ubyte[256] map6
+    ubyte[256] map7
+    ubyte[256] map8
+    ubyte[48] map9
+    uword[10] maps=[&map0,&map1,&map2,&map3,&map4,&map5,&map6,&map7,&map8,&map9]
+    bool cached=false
+    bool sample=false
+    ubyte country=255
+    ubyte mode=255
+    bool attempted=false
+    uword attempted_at
+    sub cache() {
+        uword i
+        for i in 0 to 15 header[i as ubyte]=@($7000+i)
+        for i in 0 to 2351 @(maps[(i/256) as ubyte]+i % 256)=@($89f0+i)
+        cached=true
+    }
+    sub restore() {
+        uword i
+        state.radar_ready=false
+        state.radar_demo=false
+        if not cached or country!=state.country or mode!=state.source return
+        for i in 0 to 15 @($7000+i)=header[i as ubyte]
+        if not sample and not current() return
+        for i in 0 to 2351 @($89f0+i)=@(maps[(i/256) as ubyte]+i % 256)
+        state.radar_demo=sample
+        state.radar_ready=not sample
+    }
+    sub cancel() {
+        render_cancel()
+        attempted=false
+    }
+    sub step() {
+        if direct_render_mailbox.phase==1 {
+            render_next()
+            if direct_render_mailbox.phase==2 {
+                render_pack()
+                if direct_render_mailbox.phase==3 and valid(8992,false) {
+                    sample=false
+                    upload()
+                    cache()
+                }
+            }
+        }
+        restore()
+    }
     sub valid(uword size, bool demo) -> bool {
         uword n
         uword checksum=0
@@ -61,7 +120,7 @@ radar_feed {
         return age<=limit
     }
     sub age() {
-        if state.radar_ready { if not current() state.radar_ready=false }
+        restore()
     }
     sub file(str name) -> uword {
         uword size=0
@@ -89,29 +148,31 @@ radar_feed {
     }
     sub refresh() {
         uword size
-        state.radar_ready=false
-        state.radar_demo=false
-        if state.source!=0 {
-            ; A connected modem gets the current bridge before any old SD file.
-            if state.source==2 and network_mailbox.url[0]!=0 {
-                network_radar()
-                if network_mailbox.complete {
-                    if valid(network_mailbox.received,false) { state.radar_ready=true
-                        upload()
-                        return }
-                }
-            } else {
-                size=file(iso:"WCRLIVE.BIN")
-                if valid(size,false) { state.radar_ready=true
-                    upload()
-                    return }
+        uword interval=18000
+        if state.country==1 interval=36000
+        if country!=state.country or mode!=state.source {
+            cancel()
+            cached=false
+            country=state.country
+            mode=state.source
+        }
+        restore()
+        if state.radar_demo or direct_render_mailbox.phase==1 return
+        if state.source==0 {
+            if state.country==0 size=file(iso:"WCRDEMO.BIN")
+            else size=file(iso:"WCRDPH.BIN")
+            if valid(size,true) {
+                sample=true
+                upload()
+                cache()
             }
+        } else {
+            if attempted and cbm.RDTIM16()-attempted_at<interval return
+            attempted=true
+            attempted_at=cbm.RDTIM16()
+            network_radar()
+            if direct_radar_mailbox.downloaded render_begin()
         }
-        if state.country==0 size=file(iso:"WCRDEMO.BIN")
-        else size=file(iso:"WCRDPH.BIN")
-        if valid(size,true) {
-            state.radar_demo=true
-            upload()
-        }
+        restore()
     }
 }

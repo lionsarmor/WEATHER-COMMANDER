@@ -13,6 +13,7 @@ RUNTIME_FILES += ['WC' + name + '.BIN' for name in (
     'TILES', 'MAP', 'FONT', 'PAL', 'NAT', 'REG', 'RAD', 'BLK',
     'POINTER', 'HART', 'PH', 'RDEMO', 'RDPH')]
 RUNTIME_FILES += [f'WCSC{i:02}.BIN' for i in range(28)]
+RUNTIME_FILES += ['WCPBASE.BIN','WCDMUS.BIN','WCDMPH.BIN']
 
 
 def write_archive(destination, entries):
@@ -53,45 +54,33 @@ The app starts with clearly labeled demo data if no live feed is available.
 Mouse selects controls. F5 opens Settings. Esc exits (or goes back in setup).
 
 LIVE WEATHER ON A REAL X16:
-Download WEATHER-COMMANDER-BRIDGE.zip from the same release.
-Start that bridge on your computer and keep it running.
-On the X16 open Settings > Wi-Fi and connections > On a real Commander X16.
-Join your network, enter the weather computer address, then Get my weather.
-This requires a TexElec Serial & ESP32 card with compatible ZiModem firmware.
-Physical card operation still needs testing; emulator and protocol checks pass.
+Use a compatible TexElec Serial & ESP32 / ZiModem card at IO7 ($9FE0).
+Open Settings > Wi-Fi and connections > On a real Commander X16.
+Choose your network, enter its password, then Get my weather.
+Save and open weather stores display preferences and personal city coordinates.
+No bridge computer, API key or custom card firmware is required.
 
-Updates, documentation and bridge:
+The card requests Open-Meteo forecasts and NOAA/PAGASA radar directly.
+Philippine radar builds in the background and takes about five minutes at
+8 MHz. Other screens and controls remain available while it decodes.
+Outdated, malformed or unavailable radar images are never presented as live.
+Demo mode has sample forecasts and recorded radar for both countries.
+
+Validated in ROM r49 emulation and compiled protocol tests. A physical-card
+end-to-end test has not been performed.
+
+Updates and documentation:
 https://github.com/lionsarmor/WEATHER-COMMANDER/releases
 '''.encode()
     x16['WEATHER/DATA-NOTICE.TXT'] = ((ROOT / 'assets/data/NOTICE.md').read_text() + '\n' +
                                       (ROOT / 'assets/radar/NOTICE.md').read_text()).encode()
-    bridge_paths = ['requirements.txt', 'bridge.sh', 'VERSION', 'docs/HOST-BRIDGE.md',
-                    'assets/data/NOTICE.md', 'assets/data/philippines.geojson']
-    bridge_paths += [str(p.relative_to(ROOT)) for p in sorted((ROOT / 'backend').glob('*.py'))]
-    bridge = {'WEATHER-BRIDGE/' + name: ROOT / name for name in bridge_paths}
-    bridge['WEATHER-BRIDGE/START-HERE.txt'] = b'''WEATHER COMMANDER - COMPUTER BRIDGE
-
-These files run on your computer. Copy the separate WEATHER folder to the X16.
-Install Python 3.12 or newer. In this extracted WEATHER-BRIDGE folder:
-
-  python3 -m venv .venv
-  .venv/bin/python -m pip install -r requirements.txt
-  ./bridge.sh
-
-Windows (PowerShell):
-  py -3 -m venv .venv
-  .venv\\Scripts\\python -m pip install -r requirements.txt
-  .venv\\Scripts\\python -m backend.server --bind 0.0.0.0 --output .
-
-Keep the terminal open. Enter the printed computer address in the X16 setup.
-No API key is required. See docs/HOST-BRIDGE.md for the guided Wi-Fi steps.
-For emulator use, pass --output /path/to/WEATHER to share the extracted X16 folder.
-'''
-    archives = [('WEATHER-COMMANDER-X16.zip', x16), ('WEATHER-COMMANDER-BRIDGE.zip', bridge)]
+    archives = [('WEATHER-COMMANDER-X16.zip', x16)]
     for name, entries in archives:
         destination = ROOT / 'dist' / name
         write_archive(destination, entries)
         print(destination)
+    # Retire the old generated bridge download only after the X16 ZIP succeeds.
+    (ROOT / 'dist/WEATHER-COMMANDER-BRIDGE.zip').unlink(missing_ok=True)
     checksums = ''.join(hashlib.sha256((ROOT / 'dist' / name).read_bytes()).hexdigest() + '  ' + name + '\n' for name, _ in archives)
     (ROOT / 'dist/SHA256SUMS.txt').write_text(checksums)
     print(f'{len(RUNTIME_FILES)} X16 runtime files; version {version}; SHA256SUMS.txt written.')

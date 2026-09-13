@@ -1,10 +1,13 @@
 %import network_driver
 %import network_mailbox
 %import strings
+%import direct_geo
+%import direct_weather_mailbox
+%import direct_radar_mailbox
+%import state
 
 network {
     ubyte[255] command
-    ubyte[152] city_path
     sub message(str value) { void strings.copy(value,network_mailbox.notice) }
     sub ready() -> bool {
         if network_driver.modem_present return true
@@ -95,51 +98,22 @@ network {
             }
         }
     }
-    sub fetch(str path, uword target, uword limit) {
-        ubyte i
-        ubyte p=5
+    extsub @bank 22 $a003 = direct_weather_fetch()
+    extsub @bank 1 $a003 = direct_radar_download()
+    sub weather() {
         network_mailbox.complete=false
         network_mailbox.received=0
-        if network_mailbox.connection==1 return
-        if network_mailbox.url[0]==0 return
         if not ready() return
-        void strings.copy(iso:"AT&G\"",command)
-        for i in 0 to 126 {
-            if network_mailbox.url[i]==0 break
-            command[p]=network_mailbox.url[i]
-            p++
-        }
-        i=0
-        while path[i]!=0 and p<252 { command[p]=path[i]
-            p++
-            i++ }
-        if path[i]!=0 return
-        command[p]=34
-        command[p+1]=0
-        network_mailbox.prefix=0
-        network_mailbox.destination=target
-        network_mailbox.maximum=limit
-        network_mailbox.receiving=true
-        void network_driver.send_command(command,1800)
-        network_mailbox.receiving=false
+        direct_weather_mailbox.country=state.country
+        if state.country_status==3 direct_weather_mailbox.country=state.country_choice
+        direct_weather_fetch()
         if network_mailbox.complete network_mailbox.connection=3
     }
-    sub weather() { fetch(iso:"/x16/weather.hex",$6400,1024) }
-    sub radar() { fetch(iso:"/x16/radar.hex",$7000,8992) }
-    sub city() {
-        ubyte i
-        ubyte p
-        ubyte value
-        str digits=iso:"0123456789ABCDEF"
-        void strings.copy(iso:"/x16/city.hex?request=",city_path)
-        p=strings.length(city_path)
-        for i in 0 to 63 {
-            value=@($6b00+i)
-            city_path[p]=digits[value>>4]
-            city_path[p+1]=digits[value&15]
-            p+=2
-        }
-        city_path[p]=0
-        fetch(city_path,$6400,256)
+    sub radar() {
+        direct_radar_mailbox.downloaded=false
+        if not ready() return
+        direct_radar_mailbox.country=state.country
+        direct_radar_download()
     }
+    sub city() { direct_geo.send() }
 }

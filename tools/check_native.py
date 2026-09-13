@@ -7,8 +7,8 @@ from build import ROOT, TOOLS
 
 MODULES = {'direct_http':20, 'direct_weather_decode':21, 'direct_weather':22,
            'direct_inflate':24, 'direct_png':3, 'direct_crypto':2,
-           'direct_radar':1, 'direct_render':23}
-TESTS = ('http', 'download', 'json', 'weather', 'inflate', 'png', 'crypto', 'time', 'radar', 'render')
+           'direct_radar':1, 'direct_render':23, 'direct_geo':12}
+TESTS = ('http', 'download', 'json', 'weather', 'inflate', 'png', 'crypto', 'time', 'radar', 'render', 'geo', 'weather_flow')
 
 def main():
     (ROOT/'build').mkdir(exist_ok=True)
@@ -26,7 +26,7 @@ def main():
         print(f'Bank {bank:2}: {module:24} {size:4} bytes', flush=True)
     for name in TESTS:
         subprocess.run([sys.executable, 'tools/test_direct_'+name+'.py'], cwd=ROOT, check=True)
-    print('PASS: native component checks. Production app integration is still pending.')
+    print('PASS: native component checks. Native API, image and orchestration checks passed.')
 
 if __name__ == '__main__':
     main()

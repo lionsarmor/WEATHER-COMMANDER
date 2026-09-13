@@ -1,10 +1,14 @@
 %import ui
+%import direct_render_mailbox
+%import direct_png_mailbox
 radar {
+    extsub @bank 15 $a00f = restore_map()
     sub draw() {
         ubyte row
         ubyte col
         ubyte i
         uword source=$89f0
+        restore_map()
         if state.radar_demo ui.heading(iso:"RADAR DEMO / NOT LIVE")
         else if state.country==1 ui.heading(iso:"PHILIPPINES RADAR / LIVE FEED")
         else ui.heading(iso:"USA RADAR / LIVE FEED")
@@ -50,13 +54,26 @@ radar {
             ui.heading(iso:"RADAR / FEED UNAVAILABLE")
             ui.text(19,11,$24,iso:"NATIONAL OVERVIEW / RADAR OFFLINE")
             ui.card(22,20,34,14,iso:"LET'S CHECK THE SKIES")
-            ui.text(24,23,$26,iso:"NO CURRENT RADAR IMAGE")
-            ui.text(24,26,$24,iso:"CONNECT TO LOAD CURRENT RADAR.")
-            ui.text(24,28,$24,iso:"THE MAP DOES NOT SHOW RAIN YET.")
+            if direct_render_mailbox.phase==1 {
+                ui.text(24,23,$26,iso:"BUILDING YOUR RADAR MAP")
+                ui.text(24,26,$24,iso:"YOU CAN EXPLORE OTHER SCREENS.")
+                ui.text(24,28,$24,iso:"PH RADAR TAKES A FEW MINUTES.")
+            } else {
+                ui.text(24,23,$26,iso:"NO CURRENT RADAR IMAGE")
+                ui.text(24,26,$24,iso:"RETRY OR CHECK WI-FI SETTINGS.")
+                ui.text(24,28,$24,iso:"STALE IMAGES ARE NOT SHOWN.")
+            }
             ui.button(24,31,12,2,$45,iso:"RETRY")
             ui.button(38,31,16,2,$51,iso:"CONNECT >")
             ui.text(20,39,$24,iso:"ACTUAL RADAR WHEN CONNECTED")
         }
     }
-    sub animate() { }
+    sub animate() {
+        ubyte width
+        if direct_render_mailbox.phase!=1 or state.radar_ready or state.radar_demo return
+        if direct_png_mailbox.height==0 return
+        width=((direct_png_mailbox.row*28)/direct_png_mailbox.height) as ubyte
+        ui.fill(24,29,28,1,$16)
+        if width>0 ui.fill(24,29,width,1,$51)
+    }
 }

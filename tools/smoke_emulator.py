@@ -30,11 +30,11 @@ with tempfile.TemporaryDirectory(prefix='weather-smoke-') as temp:
  folder=Path(temp);prg=folder/'WEATHER.PRG';prg.write_bytes((ROOT/'dist/sdcard/WEATHER.PRG').read_bytes())
  log=ROOT/'build/missing-bank.log'
  run(prg,folder,log,'COPY ALL DIST/SDCARD FILES')
- assert 'WCIDENT.BIN' in log.read_text()
+ assert 'WCRAPI.BIN' in log.read_text()
 # This instrumentation only queues keys, requests GIF captures, and stops.
 source=(ROOT/'src/main.p8').read_text()
-if not LIVE:source=source.replace('        state.source=2','        state.source=0')
-keys=[13,134,70,72,17,17,138,135,87,50,27,27,83,27] if LIVE else [135,68,138,137,29,13,134,72,27]
+if not LIVE:source=source.replace('        state.source=2\n','        state.source=0\n')
+keys=[135,87,50,27,49,138,137,29,13,134,72,50,138,72,49,27]
 source=source.replace('    uword now',f'''    uword smoke_frames=0
     ubyte smoke_step=0
     ubyte[{len(keys)}] smoke_keys={keys}
@@ -62,9 +62,9 @@ with tempfile.TemporaryDirectory(prefix='weather-smoke-') as temp:
   for name in ('WCDATA.BIN','WCRLIVE.BIN'):(folder/name).write_bytes((ROOT/'dist/sdcard'/name).read_bytes())
  else:(folder/'WCDATA.BIN').write_bytes(pack(json.loads((ROOT/'assets/demo-weather.json').read_text())))
  gif=ROOT/'build/emulator-smoke.gif';gif.unlink(missing_ok=True)
- run(ROOT/'build/emulator_probe.prg',folder,ROOT/'build/smoke.log','WEATHER COMMANDER CLOSED.',extra=['-gif',str(gif)+',wait'],timeout=30)
- names=['home','settings','snapshot','radar','cities','city-selected','local','forecast','home-snapshot','exit']
- if LIVE:names=['live-'+n for n in ['home','local','forecast','hourly','home-again','national','regional','radar','settings','wifi','wifi-scan','wifi-choice','settings-back','settings-saved','exit']]
+ run(ROOT/'build/emulator_probe.prg',folder,ROOT/'build/smoke.log','WEATHER COMMANDER CLOSED.',extra=['-gif',str(gif)+',wait'],timeout=100)
+ names=['home','settings','wifi','wifi-scan','wifi-choice','demo-settings','radar','cities','city-selected','local','forecast','home-again','ph-national','ph-radar','ph-home','us-national','exit']
+
  im=Image.open(gif)
  assert im.n_frames==len(names),(im.n_frames,len(names))
  for i,name in enumerate(names):
@@ -72,7 +72,7 @@ with tempfile.TemporaryDirectory(prefix='weather-smoke-') as temp:
 # Check actual decoded pixels, including every letter of every menu label.
 font=(ROOT/'dist/sdcard/WCFONT.BIN').read_bytes()
 menu=['HOME','NATIONAL','REGIONAL','LOCAL','RADAR','FORECAST','CITIES','SETTINGS','ABOUT']
-selections=[0,3,5,5,0,1,2,4,7,None,None,None,7,7] if LIVE else [0,7,7,4,6,6,3,5,0]
+selections=[0,7,None,None,None,7,4,6,6,3,5,0,1,4,0,1]
 for frame,selected in zip(names[:-1],selections):
  if selected is None:continue
  image=Image.open(ROOT/'build'/f'preview-{frame}.png').convert('RGB')
@@ -91,6 +91,6 @@ for frame,selected in zip(names[:-1],selections):
      else:
       visible=actual[0]>200 and actual[1]>200 if item==selected else max(actual)<20
      assert visible,(frame,label,column,x,y,actual)
-print('PASS: real r49 boot, missing-bank recovery, queued function/arrow keys, snapshot read,')
+print('PASS: real r49 boot, missing-bank recovery, queued function/arrow keys, US/PH demo and absent-card Wi-Fi,')
 print(f'      {len(names)} frames with pixel-verified menu labels, and exit to BASIC.')
 if LIVE:print('      Live forecast/hourly/regional/radar, full-page Wi-Fi, absent-card scan, and saved settings.')
