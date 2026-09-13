@@ -4,6 +4,8 @@
 Only the downloaded-image handoff is a fixture. All PNG, banked history,
 cooperative scheduling, map caching, UI routing and VRAM uploads are native.
 Public request orchestration and actual UART framing have separate tests.
+UI integrity is checked from VERA memory; warp GIF delta captures can omit
+unchanged pixels and are unsuitable for this long-running pipeline test.
 """
 import os
 import re
@@ -12,7 +14,6 @@ import sys
 import tempfile
 import time
 from pathlib import Path
-from PIL import Image
 from build import ROOT, TOOLS
 from package import RUNTIME_FILES
 from smoke_direct_radar import reference
@@ -38,7 +39,7 @@ main {
 '''
 source=(ROOT/'src/main.p8').read_text()
 source=source.replace('%import direct_locations','%import direct_locations\n%import direct_png_mailbox\n%import direct_radar_mailbox')
-source=source.replace('    uword now','    uword probe_row=65535\n    uword probe_i\n    ubyte probe_routes=0\n    uword now',1)
+source=source.replace('    uword now','    uword probe_row=65535\n    uword probe_i\n    ubyte probe_line\n    uword probe_base\n    ubyte probe_routes=0\n    uword now',1)
 source=source.replace('''        preferences_load()
         provider_refresh()
         radar_feed_refresh()''',f'''        preferences_load()
@@ -57,7 +58,6 @@ source=source.replace('''            radar_feed_step()
                 if probe_routes & 1==0 key=134
                 else key=138
                 handle_key()
-                @($9fb5)=1
                 ; Simulate the documented HTTP scratch overwrite between rows.
                 for probe_i in 0 to 8191 @($7000+probe_i)=165
             }
@@ -68,10 +68,24 @@ source=source.replace('''            service_timers()
             if direct_render_mailbox.phase==3 or direct_render_mailbox.phase==4 {
                 key=138
                 handle_key()
-                @($9fb5)=1
-                sys.wait(1)
                 if state.radar_ready and diskio.f_open_w(iso:"@:RESULT.BIN") {
                     void diskio.f_write($7000,8992)
+                    diskio.f_close_w()
+                }
+                probe_base=$c000
+                if state.text_bank==1 probe_base=$b000
+                if diskio.f_open_w(iso:"@:SCREEN.BIN") {
+                    for probe_line in 0 to 59 {
+                        for probe_i in 0 to 255 @($9400+probe_i)=cx16.vpeek(state.text_bank,probe_base+(probe_line as uword)*256+probe_i)
+                        void diskio.f_write($9400,256)
+                    }
+                    diskio.f_close_w()
+                }
+                if diskio.f_open_w(iso:"@:FONT.BIN") {
+                    for probe_line in 0 to 125 {
+                        for probe_i in 0 to 255 @($9400+probe_i)=cx16.vpeek(1,(probe_line as uword)*256+probe_i)
+                        void diskio.f_write($9400,256)
+                    }
                     diskio.f_close_w()
                 }
                 txt.print(iso:"NATIVE APP RESULT ")
@@ -97,10 +111,9 @@ with tempfile.TemporaryDirectory(prefix='weather-native-app-') as temp:
  (folder/'WCNET.BIN').write_bytes((ROOT/'build/native_network_probe.bin').read_bytes())
  (folder/'WCRPNG.BIN').write_bytes(image_path.read_bytes())
  logpath=ROOT/'build'/('native-app-'+sys.argv[1]+'.log')
- gif=ROOT/'build'/('native-app-'+sys.argv[1]+'.gif');gif.unlink(missing_ok=True)
  started=time.monotonic()
  with logpath.open('w') as log:
-  process=subprocess.Popen([str(TOOLS/'x16emu/x16emu'),'-rom',str(TOOLS/'x16emu/rom.bin'),'-warp','-rtc','-sound','none','-echo','iso','-fsroot',str(folder),'-startin',str(folder),'-prg',str(ROOT/'build/native_app_probe.prg'),'-run','-gif',str(gif)+',wait'],env=env,stdout=log,stderr=subprocess.STDOUT)
+  process=subprocess.Popen([str(TOOLS/'x16emu/x16emu'),'-rom',str(TOOLS/'x16emu/rom.bin'),'-warp','-rtc','-sound','none','-echo','iso','-fsroot',str(folder),'-startin',str(folder),'-prg',str(ROOT/'build/native_app_probe.prg'),'-run'],env=env,stdout=log,stderr=subprocess.STDOUT)
   try:
    while 'WEATHER COMMANDER CLOSED.' not in logpath.read_text():
     assert process.poll() is None,logpath.read_text()
@@ -110,9 +123,18 @@ with tempfile.TemporaryDirectory(prefix='weather-native-app-') as temp:
    process.terminate();process.wait(timeout=5)
  result=re.search(r'NATIVE APP RESULT (\d+) (\d+) (\d+)',logpath.read_text())
  assert result and result[1]=='3',logpath.read_text()
+ screen=(folder/'SCREEN.BIN').read_bytes()
+ (ROOT/'build'/('native-app-'+sys.argv[1]+'-screen.bin')).write_bytes(screen)
+ assert screen[11*256+66*2:11*256+75*2:2]==b'CURRENTLY', repr(screen[11*256+66*2:11*256+75*2:2])
+ for row,label in enumerate(('HOME','NATIONAL','REGIONAL','LOCAL','RADAR','FORECAST','CITIES','SETTINGS','ABOUT')):
+  start=(11+row*3)*256+(4+(12-len(label))//2)*2
+  assert screen[start:start+len(label)*2:2]==label.encode(),label
+ font=(folder/'FONT.BIN').read_bytes()
+ original_font=(ROOT/'dist/sdcard/WCFONT.BIN').read_bytes()
+ assert font[:257*32]==original_font[:257*32], 'Radar changed a base font glyph'
+ assert font[464*32:len(original_font)]==original_font[464*32:], 'Radar changed a non-radar glyph'
  raw=(folder/'RESULT.BIN').read_bytes()
  # Actual native renderer may simplify to stay inside its bounded tile budget.
  assert any(unpack(raw)==reference(image_path,country,step) for step in (1,2,4,8))
  assert int(result[2])==(9 if country else 1)
- frames=Image.open(gif);frames.seek(frames.n_frames-1);frames.convert('RGB').save(ROOT/'build'/('native-app-'+sys.argv[1]+'.png'))
- print(f'PASS: {sys.argv[1].upper()} radar in full r49 app, {result[2]} UI transitions and HTTP scratch overwrites, geographic pixels exact; {int(result[3])-300}s emulated processing.')
+ print(f'PASS: {sys.argv[1].upper()} radar and intact UI text/fonts in full r49 app, {result[2]} UI transitions and HTTP scratch overwrites, geographic pixels exact; {int(result[3])-300}s emulated processing.')

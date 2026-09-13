@@ -116,6 +116,9 @@ parameters; it is not a shipped asset or a persistent observation ID.
   end-to-end testing has not been performed and is not claimed.
 - `smoke_native_app.py us|ph image.png` tests actual PNG processing, map/cache,
   controls and ROM I/O in the full app with an isolated downloaded-image handoff.
+  It also reads VERA text/font memory to verify UI integrity. Warp-mode GIF
+  delta captures can omit unchanged pixels, so this long-running test does not
+  use them for visual assertions; ordinary UI/mouse smoke previews remain.
 - Version 0.2.0 packages 69 PRG/BIN files in one WEATHER folder plus notices;
   no bridge ZIP, user settings or downloaded image is included.
 
