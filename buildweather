@@ -5,14 +5,23 @@ weather_script="$(readlink -f -- "${BASH_SOURCE[0]}")"
 cd -- "$(dirname -- "$weather_script")"
 weather_python=python3
 if [[ -x .venv/bin/python ]]; then weather_python="$PWD/.venv/bin/python"; fi
-if [[ $# -gt 1 || ( $# -eq 1 && "$1" != --check ) ]]; then
-    echo 'Usage: buildweather [--check]' >&2
-    exit 2
-fi
+weather_check=false
+weather_copy=true
+for weather_arg in "$@"; do
+    case "$weather_arg" in
+        --check) weather_check=true ;;
+        --no-sd) weather_copy=false ;;
+        *) echo 'Usage: buildweather [--check] [--no-sd]' >&2; exit 2 ;;
+    esac
+done
 "$weather_python" tools/build.py
-if [[ "${1:-}" == --check ]]; then
+if "$weather_check"; then
     "$weather_python" tools/check.py
     "$weather_python" tools/check_native.py
+    "$weather_python" tools/test_install_sd.py
 fi
 "$weather_python" tools/package.py
 "$weather_python" tools/test_package.py
+if "$weather_copy"; then
+    "$weather_python" tools/install_sd.py
+fi

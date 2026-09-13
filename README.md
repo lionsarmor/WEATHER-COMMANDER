@@ -19,7 +19,8 @@ Version 0.2.0 ships a single X16 archive; the older v0.1.0 bridge is not needed.
 On this development computer:
 
 ```sh
-WEATHERBUILD          # or buildweather: build one complete X16 ZIP
+WEATHERBUILD          # or buildweather: build ZIP and update the mounted X16 SD card
+WEATHERBUILD --no-sd  # build ZIP only
 WEATHERCMD            # build changed files and launch the emulator
 ```
 
@@ -29,7 +30,15 @@ All 69 PRG/BIN files, setup instructions, and data notices are included.
 `dist/SHA256SUMS.txt` verifies the download. Personal preferences, passwords,
 and downloaded radar images are excluded.
 
-Copy the complete WEATHER folder to your SD card (device 8), then:
+After a successful build, the helper looks for a mounted FAT32 card labeled
+**X16_SDCARD** and updates its **WEATHER** folder at the card root (on this
+computer, `/media/legion/X16_SDCARD/WEATHER`). It preserves saved preferences,
+downloaded data, and unrelated files, and verifies the copied files. With no
+card mounted, it keeps the ZIP and reports that copying was skipped. Use
+`--no-sd` to build without copying; CI always skips the SD step.
+
+Alternatively, copy the complete WEATHER folder from the ZIP to your SD card.
+Eject the card before unplugging it. On the X16 (device 8), run:
 
 ```basic
 DOS "CD:WEATHER"
