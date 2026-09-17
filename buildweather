@@ -17,6 +17,7 @@ done
 "$weather_python" tools/build.py
 if "$weather_check"; then
     "$weather_python" tools/check.py
+    "$weather_python" tools/test_network_flow.py
     "$weather_python" tools/check_native.py
     "$weather_python" tools/test_install_sd.py
 fi

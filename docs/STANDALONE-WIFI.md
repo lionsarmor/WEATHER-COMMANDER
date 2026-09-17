@@ -1,5 +1,27 @@
 # Standalone Wi-Fi recovery checkpoint
 
+## September 16: custom Wi-Fi emulator connection fixes
+
+The project moved to `Desktop/Roddy Software/WEATHER COMMANDER`. The three
+Weather aliases now use that location; `WEATHERWIFI` calls `./run.sh --wifi`.
+The custom emulator in `Desktop/X16-emulator-wifi-support` needed actual raw
+`ATDS` TLS: previously it ignored the secure modifier and dialed plain TCP.
+Its desktop CMake build now links OpenSSL, verifies certificates/hostnames,
+and keeps large replies queued with socket backpressure. Socket closes/reset
+preserve Wi-Fi association. The virtual network is open, with no password.
+
+The app rejects failed re-joins even if an old IP remains, requires a complete
+IPv4 status line, reports scan/TLS/API errors, and skips radar requests after
+a weather setup failure. Setup text now includes Wi-Fi-enabled emulators.
+
+Verified: native HTTP/download tests, network-flow tests, integrated app checks,
+offline ROM smoke test, package checks, emulator local TCP/TLS transport tests,
+and `tools/smoke_wifi_live.py` using the actual app/ROM/UART/TLS/public APIs.
+The live test passed scan/join, all ten US cities, NOAA radar download/native
+decode, and confirmed Wi-Fi remained joined afterward. These fixes are source
+updates to Weather Commander and X16-emulator-wifi-support; no new versioned
+release has been published.
+
 The standalone rewrite is integrated into the application. Its release gate
 was direct weather AND radar for both USA and Philippines, without a computer
 bridge. Native public requests now obtain all 20 cities' weather and fresh

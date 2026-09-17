@@ -3,6 +3,7 @@
 %import strings
 %import direct_geo
 %import direct_weather_mailbox
+%import direct_http_mailbox
 %import direct_radar_mailbox
 %import state
 
@@ -21,17 +22,44 @@ network {
     }
     sub status() {
         ubyte i
+        ubyte ch
+        ubyte parts=0
+        ubyte digits=0
+        uword octet=0
+        bool valid=true
+        bool nonzero=false
         network_mailbox.connection=2
         message(iso:"NOT CONNECTED / SCAN OR ENTER SSID")
         void network_driver.send_command(iso:"ATI2",180)
-        ; Trust an assigned address, not a generic OK line.
-        if network_driver.response_contains(iso:"0.0.0.0") return
-        if network_driver.response_length<7 return
-        for i in 1 to network_driver.response_length-1 {
-            if network_driver.response[i]==46 and network_driver.response[i-1]>=48 and network_driver.response[i-1]<=57 {
-                network_mailbox.connection=3
-                message(iso:"WI-FI CONNECTED / READY FOR WEATHER")
-                return
+        ; A full IPv4 line is required. Firmware versions such as 4.0.2 and
+        ; echoed text containing a digit followed by '.' are not addresses.
+        for i in 0 to network_driver.response_length {
+            ch=network_driver.response[i]
+            if ch==13 or ch==10 or ch==0 {
+                if valid and parts==3 and digits>0 and nonzero {
+                    network_mailbox.connection=3
+                    message(iso:"WI-FI CONNECTED / READY FOR WEATHER")
+                    return
+                }
+                parts=0
+                digits=0
+                octet=0
+                valid=true
+                nonzero=false
+            } else if ch>=48 and ch<=57 {
+                if digits>=3 valid=false
+                else {
+                    octet=octet*10+ch-48
+                    digits++
+                    if octet>255 valid=false
+                    if octet>0 nonzero=true
+                }
+            } else if ch==46 and digits>0 and parts<3 {
+                parts++
+                digits=0
+                octet=0
+            } else {
+                valid=false
             }
         }
         message(iso:"NOT CONNECTED / SCAN OR ENTER SSID")
@@ -47,6 +75,7 @@ network {
         ubyte i
         ubyte p
         ubyte request=network_mailbox.action
+        bool joined
         network_mailbox.action=0
         if request==5 { network_driver.modem_present=false
             network_mailbox.connection=0
@@ -58,9 +87,10 @@ network {
         when request {
             1 -> {
                 network_driver.begin_network_capture()
-                void network_driver.send_command(iso:"ATW10",900)
+                joined=network_driver.send_command(iso:"ATW10",900)
                 network_driver.end_network_capture()
-                message(iso:"SELECT A NETWORK OR ENTER ITS NAME")
+                if joined message(iso:"SELECT A NETWORK OR ENTER ITS NAME")
+                else message(iso:"SCAN FAILED / TRY AGAIN OR ENTER SSID")
             }
             2,4 -> status()
             3 -> {
@@ -91,8 +121,10 @@ network {
                 }
                 command[p]=34
                 command[p+1]=0
-                void network_driver.send_command(command,900)
+                joined=network_driver.send_command(command,900)
                 clear_secret()
+                if not joined { message(iso:"COULD NOT JOIN / CHECK YOUR PASSWORD")
+                    return }
                 status()
                 if network_mailbox.connection!=3 message(iso:"COULD NOT JOIN / CHECK YOUR PASSWORD")
             }
@@ -104,14 +136,24 @@ network {
         network_mailbox.complete=false
         network_mailbox.received=0
         if not ready() return
+        if network_mailbox.connection!=3 {
+            status()
+            if network_mailbox.connection!=3 return
+        }
         direct_weather_mailbox.country=state.country
         if state.country_status==3 direct_weather_mailbox.country=state.country_choice
         direct_weather_fetch()
         if network_mailbox.complete network_mailbox.connection=3
+        else if direct_http_mailbox.error==2 message(iso:"HTTPS FAILED / CHECK TLS OR INTERNET")
+        else if direct_http_mailbox.status==429 message(iso:"WEATHER API BUSY / TRY AGAIN LATER")
+        else if direct_http_mailbox.status!=200 message(iso:"WEATHER API UNREACHABLE / TRY AGAIN")
+        else if not direct_http_mailbox.complete message(iso:"DOWNLOAD FAILED / CHECK INTERNET")
+        else message(iso:"WEATHER FORMAT ERROR / TRY LATER")
     }
     sub radar() {
         direct_radar_mailbox.downloaded=false
         if not ready() return
+        if network_mailbox.connection!=3 return
         direct_radar_mailbox.country=state.country
         direct_radar_download()
     }

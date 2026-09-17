@@ -97,10 +97,10 @@ wifi {
                 ui.text(11,22,$15,iso:"START WITH SAMPLE WEATHER")
                 ui.text(11,25,$16,iso:"EXPLORE EVERY WEATHER SCREEN WITHOUT INTERNET.")
                 ui.text(11,27,$14,iso:"RECORDED RADAR IS CLEARLY MARKED AS DEMO.")
-                ui.card(8,32,64,10,iso:"2  ON A REAL COMMANDER X16  >")
+                ui.card(8,32,64,10,iso:"2  CONNECT WITH A WI-FI CARD  >")
                 ui.text(11,35,$15,iso:"CONNECT MY WI-FI MODEM")
                 ui.text(11,38,$16,iso:"WE'LL FIND YOUR NETWORK AND CONNECT TO WEATHER.")
-                ui.text(11,40,$14,iso:"FOR THE TEXELEC / ZIMODEM WI-FI CARD.")
+                ui.text(11,40,$14,iso:"REAL X16 OR WI-FI-ENABLED EMULATOR.")
             }
             1 -> {
                 ui.card(8,17,64,25,iso:"CHOOSE YOUR WI-FI NETWORK")
@@ -135,7 +135,9 @@ wifi {
                 field(29,2,network_mailbox.password,true)
                 ui.text(11,33,$16,iso:"TYPE YOUR PASSWORD, THEN CLICK CONNECT.")
                 ui.text(11,36,$14,iso:"CAPITAL LETTERS MATTER. OPEN NETWORK? LEAVE EMPTY.")
-                ui.text(11,39,$14,iso:"YOUR PASSWORD IS NOT SAVED ON THE SD CARD.")
+                if strings.compare(network_mailbox.ssid,iso:"X16-EMULATOR-NET")==0
+                    ui.text(11,39,$14,iso:"EMULATOR NETWORK: LEAVE THE PASSWORD EMPTY.")
+                else ui.text(11,39,$14,iso:"YOUR PASSWORD IS NOT SAVED ON THE SD CARD.")
             }
             3 -> {
                 ui.card(8,19,64,24,iso:"WI-FI CONNECTED / READY FOR WEATHER")

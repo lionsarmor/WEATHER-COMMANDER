@@ -22,6 +22,7 @@ On this development computer:
 WEATHERBUILD          # or buildweather: build ZIP and update the mounted X16 SD card
 WEATHERBUILD --no-sd  # build ZIP only
 WEATHERCMD            # build changed files and launch the emulator
+WEATHERWIFI           # build and launch the custom emulator with Wi-Fi enabled
 ```
 
 From a checkout, use `./buildweather` and `./run.sh`. The ZIP is
@@ -51,7 +52,7 @@ when no compatible modem is present; the launcher does not start a bridge.
 
 ## Connect your X16
 
-Open **Settings → Wi-Fi and connections → On a real Commander X16**.
+Open **Settings → Wi-Fi and connections → Connect with a Wi-Fi card**.
 Choose your network, enter its password, click **Connect to Wi-Fi**, then
 **Get my weather**. **Save and open weather** saves your preferences.
 The first ten-city update can take a minute. An already configured card can
@@ -62,6 +63,11 @@ The driver supports the TexElec Serial & ESP32 card with compatible stock
 ZiModem firmware, using IO7 at `$9FE0`, 115200 baud, and hardware flow control.
 See [Wi-Fi setup](docs/WIFI.md). Protocol checks and r49 emulator tests pass;
 a physical-card end-to-end test has not been performed.
+
+The custom **X16-emulator-wifi-support** fork can also connect through your
+computer's internet. Launch with `WEATHERWIFI` or `./run.sh --wifi`, select
+**X16-EMULATOR-NET**, and leave the password empty. It needs a build with raw
+`ATDS` TLS support; see [Wi-Fi emulator setup](docs/WIFI.md#wi-fi-emulator).
 
 Click **+ ADD CITY [N]**, enter a name such as `Madison, WI`, and choose a result.
 Search is restricted to the selected country. Your city becomes the first

@@ -563,14 +563,18 @@ main {
             if network_mailbox.action==6 {
                 network_mailbox.action=0
                 state.source=2
+                network_mailbox.notice[0]=0
                 provider_refresh()
-                radar_feed_refresh()
                 last_refresh=cbm.RDTIM16()
                 if state.status==3 {
+                    radar_feed_refresh()
                     state.wifi_step=4
                     state.automatic=true
                     void strings.copy(iso:"CONNECTED / YOUR WEATHER IS UP TO DATE",network_mailbox.notice)
-                } else void strings.copy(iso:"NO FRESH WEATHER YET / CHECK CONNECTION",network_mailbox.notice)
+                } else {
+                    radar_feed_restore()
+                    if network_mailbox.notice[0]==0 void strings.copy(iso:"NO FRESH WEATHER YET / PLEASE RETRY",network_mailbox.notice)
+                }
             } else if network_mailbox.action==7 {
                 network_mailbox.action=0
                 preferences_save()

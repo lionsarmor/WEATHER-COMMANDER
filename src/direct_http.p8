@@ -289,6 +289,7 @@ direct_http {
         }
         network_driver.card_present=true
         if not network_driver.send_command(command,900) { fail()
+            direct_http_mailbox.error=2
             escape()
             close_file()
             return }

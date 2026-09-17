@@ -81,5 +81,15 @@ class RuntimeTests(unittest.TestCase):
   h.m[0x6950:0x6955]=b'Home\0';h.m[0x6980:0x6987]=b'secret\0'
   h.hook(12,'p8b_network_driver:p8s_send_command',lambda:h.ay(0));h.run(12,0xa003)
   self.assertEqual(h.m[0x69c5],2);self.assertFalse(any(h.m[0x6980:0x69c0]))
+ def test_failed_weather_setup_keeps_error_and_skips_radar_download(self):
+  h=Harness();h.m[0x9800]=10;h.m[0x981a]=3;h.m[0x69c0]=6
+  notice=b'HTTPS FAILED / CHECK TLS OR INTERNET\0'
+  def failed_weather():
+   h.m[0x9805]=2;h.m[0x69d0:0x69d0+len(notice)]=notice
+  h.hooks[(13,0xa003)]=failed_weather
+  h.hooks[(15,0xa003)]=lambda:self.fail('Weather failure must not start another radar download')
+  h.run(0,'p8b_main:p8s_finish_wifi_action')
+  self.assertEqual(h.m[0x981a],3)
+  self.assertEqual(bytes(h.m[0x69d0:0x69d0+len(notice)]),notice)
 
 if __name__=='__main__':unittest.main()

@@ -55,7 +55,7 @@ Mouse selects controls. F5 opens Settings. Esc exits (or goes back in setup).
 
 LIVE WEATHER ON A REAL X16:
 Use a compatible TexElec Serial & ESP32 / ZiModem card at IO7 ($9FE0).
-Open Settings > Wi-Fi and connections > On a real Commander X16.
+Open Settings > Wi-Fi and connections > Connect with a Wi-Fi card.
 Choose your network, enter its password, then Get my weather.
 Save and open weather stores display preferences and personal city coordinates.
 No bridge computer, API key or custom card firmware is required.
